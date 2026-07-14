@@ -1,0 +1,123 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum JobStatus {
+  PENDING
+  QUEUED
+  RUNNING
+  COMPLETED
+  FAILED
+  RETRYING
+  CANCELLED
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String
+
+  role         String   @default("USER")
+  isActive     Boolean  @default(true)
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  jobs          Job[]
+  notifications Notification[]
+}
+
+model Job {
+  id     String @id @default(uuid())
+  userId String
+
+  jobType String
+  status  JobStatus @default(PENDING)
+
+  payload Json
+
+  progress Int @default(0)
+
+  retryCount Int @default(0)
+
+  nextRetryAt DateTime?
+
+  workerId String?
+
+  version Int @default(1)
+
+  failureReason String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  completedAt DateTime?
+
+  user User @relation(fields: [userId], references: [id])
+
+  result Result?
+
+  events JobEvent[]
+
+  @@index([status])
+  @@index([workerId])
+}
+
+model Result {
+  id String @id @default(uuid())
+
+  jobId String @unique
+
+  resultType String
+
+  size Int?
+
+  resultUrl String
+
+  createdAt DateTime @default(now())
+
+  job Job @relation(fields: [jobId], references: [id])
+}
+
+model JobEvent {
+  id String @id @default(uuid())
+
+  jobId String
+
+  eventType String
+
+  workerId String?
+
+  details Json?
+
+  createdAt DateTime @default(now())
+
+  job Job @relation(fields: [jobId], references: [id])
+
+  @@index([jobId])
+}
+
+model Notification {
+  id String @id @default(uuid())
+
+  userId String
+
+  type String
+
+  message String
+
+  metadata Json?
+
+  createdAt DateTime @default(now())
+
+  readAt DateTime?
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+}

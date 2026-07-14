@@ -1,0 +1,1 @@
+export const LEADER_LOCK_TTL_SECONDS = 15;
