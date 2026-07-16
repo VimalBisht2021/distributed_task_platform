@@ -11,6 +11,11 @@ services:
       - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d task_platform"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   redis:
     image: redis:7
@@ -20,6 +25,52 @@ services:
       - "6379:6379"
     volumes:
       - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  api-service:
+    build:
+      context: .
+      dockerfile: services/api-service/Dockerfile
+    container_name: task-platform-api
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    env_file: .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  worker-service:
+    build:
+      context: .
+      dockerfile: services/worker-service/Dockerfile
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      - WORKER_CONCURRENCY=10
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  scheduler-service:
+    build:
+      context: .
+      dockerfile: services/scheduler-service/Dockerfile
+    restart: unless-stopped
+    env_file: .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
 
   prometheus:
     image: prom/prometheus
@@ -29,6 +80,7 @@ services:
       - "9090:9090"
     volumes:
       - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+
   grafana:
     image: grafana/grafana
     container_name: task-platform-grafana
@@ -38,7 +90,37 @@ services:
     volumes:
       - grafana_data:/var/lib/grafana
 
-  
+  lab-service:
+    build:
+      context: .
+      dockerfile: services/lab-service/Dockerfile
+    container_name: task-platform-lab
+    restart: unless-stopped
+    ports:
+      - "3006:3006"
+    environment:
+      - API_URL=http://api-service:3000
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./:/host
+    depends_on:
+      - api-service
+
+  dashboard:
+    build:
+      context: .
+      dockerfile: apps/dashboard/Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:3000
+        NEXT_PUBLIC_LAB_SERVICE_URL: http://localhost:3006
+    container_name: task-platform-dashboard
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    depends_on:
+      - api-service
+      - lab-service
+
 volumes:
   postgres_data:
   redis_data:

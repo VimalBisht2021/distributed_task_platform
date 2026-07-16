@@ -7,19 +7,22 @@ export const authMiddleware = (
   next: NextFunction,
 ) => {
   try {
-    const authHeader = req.headers.authorization;
-
-    if (!authHeader) {
-      return res.status(401).json({
-        message: "No token provided",
-      });
+    let token = "";
+    
+    if (req.headers.authorization) {
+      const authHeader = req.headers.authorization;
+      const [bearer, tokenValue] = authHeader.split(" ");
+      if (bearer !== "Bearer" || !tokenValue) {
+        return res.status(401).json({ message: "Invalid authorization header" });
+      }
+      token = tokenValue;
+    } else if (req.query.token) {
+      token = req.query.token as string;
     }
 
-    const [bearer, token] = authHeader.split(" ");
-
-    if (bearer !== "Bearer" || !token) {
+    if (!token) {
       return res.status(401).json({
-        message: "Invalid authorization header",
+        message: "No token provided",
       });
     }
 

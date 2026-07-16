@@ -123,3 +123,14 @@ dist
 
 # Windows thumbnail cache files
 Thumbs.db
+
+# IDEs and Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Temporary debug scripts
+test-*.js
+scratch*/
+

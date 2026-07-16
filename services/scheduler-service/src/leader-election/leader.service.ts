@@ -56,4 +56,24 @@ export class LeaderService {
 
         return true;
     }
+
+    async releaseLeadership(): Promise<void> {
+        const result = await redisClient.eval(
+            `
+            if redis.call("get", KEYS[1]) == ARGV[1] then
+                return redis.call("del", KEYS[1])
+            else
+                return 0
+            end
+            `,
+            1,
+            REDIS_KEYS.SCHEDULER_LEADER,
+            SCHEDULER_ID
+        );
+
+        if (result === 1) {
+            schedulerLeaderGauge.set(0);
+            console.log(`[${SCHEDULER_ID}] Leadership released`);
+        }
+    }
 }

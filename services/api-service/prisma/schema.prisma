@@ -17,6 +17,13 @@ enum JobStatus {
   CANCELLED
 }
 
+enum JobPriority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
 model User {
   id           String   @id @default(uuid())
   email        String   @unique
@@ -36,8 +43,9 @@ model Job {
   id     String @id @default(uuid())
   userId String
 
-  jobType String
-  status  JobStatus @default(PENDING)
+  jobType  String
+  status   JobStatus   @default(PENDING)
+  priority JobPriority @default(MEDIUM)
 
   payload Json
 
@@ -66,6 +74,7 @@ model Job {
 
   @@index([status])
   @@index([workerId])
+  @@index([priority])
 }
 
 model Result {

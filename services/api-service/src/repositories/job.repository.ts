@@ -2,9 +2,14 @@ import { JobStatus } from "@prisma/client";
 import { prisma } from "../config/prisma";
 
 export class JobRepository {
-  async create(data: { userId: string; jobType: string; payload: any }) {
+  async create(data: { userId: string; jobType: string; payload: any; priority?: string }) {
     return prisma.job.create({
-      data,
+      data: {
+        userId: data.userId,
+        jobType: data.jobType,
+        payload: data.payload,
+        priority: (data.priority as any) || "MEDIUM",
+      },
     });
   }
 
@@ -17,6 +22,11 @@ export class JobRepository {
   }
 
   async findByUserId(userId: string) {
+    if (userId === "admin") {
+      return prisma.job.findMany({
+        orderBy: { createdAt: "desc" },
+      });
+    }
     return prisma.job.findMany({
       where: {
         userId,

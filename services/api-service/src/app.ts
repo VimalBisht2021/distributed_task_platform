@@ -6,6 +6,7 @@ import healthRoute from "./routes/healt.route"
 import authRoute from "./routes/auth.route";
 import jobRoutes from "./routes/job.route";
 import metricsRoutes from "./routes/metrics.route";
+import eventsRoutes from "./routes/events.route";
 import { register } from "./metrics/metrics";
 const app = express();
 
@@ -18,6 +19,7 @@ app.use("/health", healthRoute);
 app.use("/auth",authRoute);
 app.use("/jobs",jobRoutes);
 app.use("/metrics",metricsRoutes);
+app.use("/events",eventsRoutes);
 
 
 

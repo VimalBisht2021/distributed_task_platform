@@ -1,11 +1,11 @@
 import { redisClient } from "./client";
 import { REDIS_KEYS } from "./keys";
+import { getQueueForPriority } from "../../../../shared/constants/redis";
 
 export async function enqueueJob(
-  jobId: string
+  jobId: string,
+  priority: string = "MEDIUM"
 ) {
-  await redisClient.lPush(
-    REDIS_KEYS.MAIN_QUEUE,
-    jobId
-  );
+  const queue = getQueueForPriority(priority);
+  await redisClient.lPush(queue, jobId);
 }

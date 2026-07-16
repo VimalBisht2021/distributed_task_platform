@@ -1,10 +1,12 @@
 import { Router } from "express";
 import { getJobs, getWorkers } from "../controllers/metrics.controller";
 import { register } from "../metrics/metrics";
-const router = Router();
-router.get("/jobs", getJobs);
+import { authMiddleware } from "../middleware/auth.middleware";
 
-router.get("/workers", getWorkers);
+const router = Router();
+router.get("/jobs", authMiddleware, getJobs);
+
+router.get("/workers", authMiddleware, getWorkers);
 
 
 router.get("/", async (_req, res) => {

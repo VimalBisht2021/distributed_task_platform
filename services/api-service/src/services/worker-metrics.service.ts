@@ -1,25 +1,10 @@
 import { redisClient } from "../redis/client";
+import { WorkerDto, WorkerMetricsDto } from "../../../../shared/types";
 
-interface WorkerInfo {
-  workerId: string;
-  status: string;
-  capacity: number;
-  currentLoad: number;
-  startedAt: number;
-}
-
-interface WorkerMetrics {
-  workers: WorkerInfo[];
-  activeWorkers: number;
-  totalCapacity: number;
-  currentLoad: number;
-  utilization: number;
-}
-
-export async function getWorkerMetrics(): Promise<WorkerMetrics> {
+export async function getWorkerMetrics(): Promise<WorkerMetricsDto> {
   const workerIds = await redisClient.sMembers("workers:active");
 
-  const workers: WorkerInfo[] = [];
+  const workers: WorkerDto[] = [];
 
   for (const workerId of workerIds) {
     const data = await redisClient.get(`worker:${workerId}`);

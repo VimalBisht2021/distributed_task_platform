@@ -3,8 +3,8 @@ import Redis from "ioredis";
 // General-purpose connection for SET, GET, SADD, etc.
 // Used by heartbeats, worker registration, and all non-blocking commands.
 export const redisClient = new Redis({
-  host: "localhost",
-  port: 6379,
+  host: process.env.REDIS_HOST || "localhost",
+  port: parseInt(process.env.REDIS_PORT || "6379"),
 });
 
 // Dedicated connection for blocking operations (BRPOP).
@@ -12,8 +12,8 @@ export const redisClient = new Redis({
 // run on a separate client — otherwise heartbeat commands queue
 // behind it and never execute, causing the worker key TTL to expire.
 export const redisBlockingClient = new Redis({
-  host: "localhost",
-  port: 6379,
+  host: process.env.REDIS_HOST || "localhost",
+  port: parseInt(process.env.REDIS_PORT || "6379"),
 });
 
 redisClient.on("connect", () => {

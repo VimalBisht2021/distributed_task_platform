@@ -1,0 +1,17 @@
+{
+  "name": "distributed-task-platform",
+  "version": "1.0.0",
+  "description": "Distributed Task Processing Platform",
+  "scripts": {
+    "lab": "bash ./scripts/test-lab.sh",
+    "dev": "concurrently -n \"API,WORKER,SCHEDULER,LAB,DASHBOARD\" -c \"cyan,magenta,yellow,blue,green\" \"npm run dev:api\" \"npm run dev:worker\" \"npm run dev:scheduler\" \"npm run dev:lab\" \"npm run dev:dashboard\"",
+    "dev:api": "npm run dev --prefix services/api-service",
+    "dev:worker": "npm run dev --prefix services/worker-service",
+    "dev:scheduler": "npm run dev --prefix services/scheduler-service",
+    "dev:lab": "npm run dev --prefix services/lab-service",
+    "dev:dashboard": "npm run dev --prefix apps/dashboard"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.4"
+  }
+}

@@ -28,6 +28,7 @@ export class RecoveryService {
         data: {
           status: "RETRYING",
           workerId: null,
+          nextRetryAt: new Date(),
           version: {
             increment: 1,
           },

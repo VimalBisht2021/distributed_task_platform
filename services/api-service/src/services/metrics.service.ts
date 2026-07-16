@@ -1,8 +1,10 @@
 import { PrismaClient } from "@prisma/client";
+import { SystemMetricsDto } from "../../../../shared/types";
+
 const prisma = new PrismaClient();
 
 export class MetricsService {
-  async getJobMetrics() {
+  async getJobMetrics(): Promise<SystemMetricsDto> {
     const [
       pending,
       queued,

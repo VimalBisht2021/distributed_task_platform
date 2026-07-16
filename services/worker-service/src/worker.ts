@@ -4,13 +4,13 @@ import { processJob } from "./processors/job.processor";
 import { EventService } from "./services/event.service";
 import { ResultService } from "./services/result.service";
 import { WorkerService } from "./services/worker.service";
-import { startHeartbeat } from "./heartbeat";
+import { startHeartbeat, stopHeartbeat } from "./heartbeat";
 import crypto from "crypto";
-import { redisClient } from "./redis/redisClient";
+import { redisClient, redisBlockingClient } from "./redis/redisClient";
 import { REDIS_KEYS } from "./redis/keys";
 import { getRetryDelay } from "./utils/retry";
 import { jobsCompletedCounter, jobsFailedCounter, jobsRetriedCounter, jobProcessingDuration, queueWaitDuration } from "./metrics/metrics";
-import { startMetricsServer } from "./metrics/server";
+import { startMetricsServer, stopMetricsServer } from "./metrics/server";
 
 const prisma = new PrismaClient();
 
@@ -21,8 +21,13 @@ const workerService = new WorkerService();
 const WORKER_ID = process.env.WORKER_ID ?? `worker-${crypto.randomUUID()}`;
 const MAX_RETRIES = 4;
 
+export let shuttingDown = false;
+let shutdownStarted = false;
+const currentJobPromises: Set<Promise<boolean>> = new Set();
+const CONCURRENCY = parseInt(process.env.WORKER_CONCURRENCY || '1', 10);
+
 export async function processOneJob(workerId: string) {
-  const jobId = await waitForJob();
+  const jobId = await waitForJob(() => shuttingDown);
 
   if (!jobId) {
     return false;
@@ -73,7 +78,7 @@ export async function processOneJob(workerId: string) {
     endTimer = jobProcessingDuration.startTimer();
     
     // The processor will be mocked in tests
-    const result = await processJob(jobId);
+    const result = await processJob(jobId, job.payload);
 
     await resultService.createResult(
       jobId,
@@ -88,7 +93,6 @@ export async function processOneJob(workerId: string) {
         status: "COMPLETED",
         completedAt: new Date(),
         failureReason: null,
-        workerId: null,
         progress: 100,
         version: {
           increment: 1,
@@ -187,7 +191,6 @@ export async function processOneJob(workerId: string) {
         data: {
           status: "FAILED",
           failureReason: message,
-          workerId: null,
           version: {
             increment: 1,
           },
@@ -224,20 +227,69 @@ export async function processOneJob(workerId: string) {
   }
 }
 
-async function start() {
-  startMetricsServer();
-
-  await workerService.registerWorker(WORKER_ID);
-
-  startHeartbeat(WORKER_ID);
-
-  console.log("Worker started");
-
-  while (true) {
-    await processOneJob(WORKER_ID);
+async function runWorkerLoop() {
+  while (!shuttingDown) {
+    const p = processOneJob(WORKER_ID);
+    currentJobPromises.add(p);
+    try {
+      await p;
+    } catch (err) {
+      console.error("Error in job loop:", err);
+    } finally {
+      currentJobPromises.delete(p);
+    }
   }
 }
 
+async function start() {
+  startMetricsServer();
+
+  await workerService.registerWorker(WORKER_ID, CONCURRENCY);
+
+  startHeartbeat(WORKER_ID, CONCURRENCY);
+
+  console.log(`Worker started with concurrency ${CONCURRENCY}`);
+
+  for (let i = 0; i < CONCURRENCY; i++) {
+    runWorkerLoop();
+  }
+}
+
+export async function shutdown() {
+  if (shutdownStarted) return;
+  shutdownStarted = true;
+
+  console.log("Shutting down worker...");
+  shuttingDown = true;
+
+  try {
+    if (currentJobPromises.size > 0) {
+      console.log(`Waiting for ${currentJobPromises.size} current jobs to finish...`);
+      await Promise.all(currentJobPromises);
+    }
+
+    stopHeartbeat();
+    await stopMetricsServer();
+    await redisClient.del(`worker:${WORKER_ID}`);
+    await redisClient.srem("workers:active", WORKER_ID);
+
+    await redisClient.quit();
+    await redisBlockingClient.quit();
+    await prisma.$disconnect();
+
+    console.log("Worker shutdown complete");
+  } catch (error) {
+    console.error("Error during worker shutdown:", error);
+    process.exitCode = 1;
+  }
+}
+
+process.on("SIGTERM", shutdown);
+process.on("SIGINT", shutdown);
+
 if (process.env.NODE_ENV !== "test") {
-  start().catch(console.error);
+  start().catch((err) => {
+    console.error("Worker failed to start", err);
+    process.exitCode = 1;
+  });
 }

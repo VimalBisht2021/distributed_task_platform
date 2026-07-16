@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "ts-node-dev --respawn src/scheduler.ts",
     "build": "tsc",
-    "start": "node dist/scheduler.js"
+    "start": "node dist/services/scheduler-service/src/scheduler.js"
   },
   "keywords": [],
   "author": "",

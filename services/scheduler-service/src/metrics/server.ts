@@ -1,7 +1,7 @@
 import { createServer } from "http";
 import { register } from "./metrics";
 
-const PORT = process.env.METRICS_PORT || 3002;
+const PORT = process.env.PORT || 3004;
 
 export function startMetricsServer() {
   const server = createServer(async (req, res) => {

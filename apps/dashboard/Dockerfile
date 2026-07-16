@@ -1,0 +1,58 @@
+FROM node:20-alpine AS base
+
+# Install dependencies only when needed
+FROM base AS deps
+# Check https://github.com/nodejs/docker-node/tree/b4117f9333da4138b03a546ec926ef50a31506c3#nodealpine to understand why libc6-compat might be needed.
+RUN apk add --no-cache libc6-compat
+WORKDIR /app
+
+# Install dependencies and build
+FROM base AS builder
+WORKDIR /app
+COPY apps/dashboard/package*.json ./apps/dashboard/
+
+WORKDIR /app/apps/dashboard
+RUN npm ci
+
+WORKDIR /app
+COPY . .
+
+# Arguments for the build
+ARG NEXT_PUBLIC_API_URL
+ARG NEXT_PUBLIC_LAB_SERVICE_URL
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_LAB_SERVICE_URL=$NEXT_PUBLIC_LAB_SERVICE_URL
+
+# Note: Using npx next build explicitly for the dashboard workspace
+RUN cd apps/dashboard && npx next build
+
+# Production image, copy all the files and run next
+FROM base AS runner
+WORKDIR /app
+
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+
+RUN addgroup --system --gid 1001 nodejs
+RUN adduser --system --uid 1001 nextjs
+
+COPY --from=builder /app/apps/dashboard/public ./apps/dashboard/public
+
+# Set the correct permission for prerender cache
+RUN mkdir .next
+RUN chown nextjs:nodejs .next
+
+# Automatically leverage output traces to reduce image size
+# https://nextjs.org/docs/advanced-features/output-file-tracing
+COPY --from=builder --chown=nextjs:nodejs /app/apps/dashboard/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/apps/dashboard/.next/static ./apps/dashboard/.next/static
+
+USER nextjs
+
+EXPOSE 3001
+
+ENV PORT=3001
+
+# server.js is created by next build from the standalone output
+# https://nextjs.org/docs/pages/api-reference/next-config-js/output
+CMD ["node", "apps/dashboard/server.js"]

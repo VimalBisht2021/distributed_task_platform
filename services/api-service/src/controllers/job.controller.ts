@@ -11,7 +11,8 @@ export class JobController {
     try {
       const dto = createJobSchema.parse(req.body);
 
-      const result = await jobService.createJob(req.user!.userId, dto);
+      const userId = req.user?.userId as string;
+      const result = await jobService.createJob(userId, dto);
 
       jobsCreatedCounter.inc();
       return res.status(201).json(result);
@@ -24,9 +25,10 @@ export class JobController {
 
   async getById(req: Request, res: Response) {
     try {
+      const userId = req.user?.userId as string;
       const result = await jobService.getJob(
         req.params.jobId as string,
-        req.user!.userId,
+        userId,
       );
       return res.status(200).json(result);
     } catch (error: any) {
@@ -37,7 +39,8 @@ export class JobController {
   }
   async getAll(req: Request, res: Response) {
     try {
-      const jobs = await jobService.getUserJobs(req.user!.userId);
+      const userId = req.user?.userId as string;
+      const jobs = await jobService.getUserJobs(userId);
 
       return res.status(200).json(jobs);
     } catch (error: any) {
@@ -49,9 +52,10 @@ export class JobController {
 
   async cancel(req: Request, res: Response) {
     try {
+      const userId = req.user?.userId as string;
       const result = await jobService.cancelJob(
         req.params.jobId as string,
-        req.user!.userId,
+        userId,
       );
 
       return res.status(200).json(result);
@@ -63,9 +67,10 @@ export class JobController {
   }
   async retry(req: Request, res: Response) {
     try {
+      const userId = req.user?.userId as string;
       const result = await jobService.retryJob(
         req.params.jobId as string,
-        req.user!.userId,
+        userId,
       );
 
       return res.status(200).json(result);

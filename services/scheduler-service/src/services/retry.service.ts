@@ -13,7 +13,7 @@ export class RetryService {
 
     let requeuedCount = 0;
     for (const job of jobs) {
-      await this.queueService.enqueue(job.id);
+      await this.queueService.enqueue(job.id, job.priority || "MEDIUM");
       await this.markQueued(job.id);
       await this.eventService.createEvent(
         job.id,

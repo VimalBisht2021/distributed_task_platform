@@ -4,7 +4,7 @@ import { workerUtilizationGauge } from "../metrics/metrics";
 const HEARTBEAT_TTL = 30; // 6× the 5s heartbeat interval — gives ample grace before expiry
 
 export class WorkerService {
-  async registerWorker(workerId: string) {
+  async registerWorker(workerId: string, capacity: number = 1) {
     await redisClient.sadd("workers:active", workerId);
 
     await redisClient.set(
@@ -12,7 +12,7 @@ export class WorkerService {
       JSON.stringify({
         workerId,
         status: "ACTIVE",
-        capacity: 1,
+        capacity: capacity,
         currentLoad: 0,
         startedAt: Date.now(),
       }),
@@ -25,7 +25,7 @@ export class WorkerService {
 
     workerUtilizationGauge.set({ worker_id: workerId }, 0);
 
-    console.log(`Worker ${workerId} registered`);
+    console.log(`Worker ${workerId} registered with capacity ${capacity}`);
   }
 
   async incrementLoad(workerId: string) {
@@ -68,13 +68,13 @@ export class WorkerService {
     );
   }
 
-  async heartbeat(workerId: string) {
+  async heartbeat(workerId: string, capacity: number = 1) {
     const workerData = await redisClient.get(`worker:${workerId}`);
 
     if (!workerData) {
       console.log(`Heartbeat: worker key missing, re-registering`);
 
-      await this.registerWorker(workerId);
+      await this.registerWorker(workerId, capacity);
       return;
     }
 
