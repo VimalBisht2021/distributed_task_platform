@@ -26,9 +26,11 @@ export class JobController {
   async getById(req: Request, res: Response) {
     try {
       const userId = req.user?.userId as string;
+      const role = req.user?.role as string;
       const result = await jobService.getJob(
         req.params.jobId as string,
         userId,
+        role,
       );
       return res.status(200).json(result);
     } catch (error: any) {
@@ -40,7 +42,8 @@ export class JobController {
   async getAll(req: Request, res: Response) {
     try {
       const userId = req.user?.userId as string;
-      const jobs = await jobService.getUserJobs(userId);
+      const role = req.user?.role as string;
+      const jobs = await jobService.getUserJobs(userId, role);
 
       return res.status(200).json(jobs);
     } catch (error: any) {
@@ -53,9 +56,11 @@ export class JobController {
   async cancel(req: Request, res: Response) {
     try {
       const userId = req.user?.userId as string;
+      const role = req.user?.role as string;
       const result = await jobService.cancelJob(
         req.params.jobId as string,
         userId,
+        role,
       );
 
       return res.status(200).json(result);
@@ -68,9 +73,11 @@ export class JobController {
   async retry(req: Request, res: Response) {
     try {
       const userId = req.user?.userId as string;
+      const role = req.user?.role as string;
       const result = await jobService.retryJob(
         req.params.jobId as string,
         userId,
+        role,
       );
 
       return res.status(200).json(result);

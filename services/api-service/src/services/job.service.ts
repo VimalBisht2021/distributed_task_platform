@@ -51,14 +51,14 @@ export class JobService {
     };
   }
 }
-  async getJob(jobId: string, userId: string): Promise<JobDto> {
+  async getJob(jobId: string, userId: string, role?: string): Promise<JobDto> {
     const job = await this.jobRepository.findById(jobId);
 
     if (!job) {
       throw new Error("Job not found");
     }
 
-    if (userId !== "admin" && job.userId !== userId) {
+    if (role !== "ADMIN" && job.userId !== userId) {
       throw new Error("Forbidden");
     }
 
@@ -84,8 +84,8 @@ export class JobService {
     };
   }
 
-  async getUserJobs(userId: string): Promise<JobDto[]> {
-    const jobs = await this.jobRepository.findByUserId(userId);
+  async getUserJobs(userId: string, role?: string): Promise<JobDto[]> {
+    const jobs = await this.jobRepository.findByUserId(userId, role);
 
     return jobs.map((job) => ({
       jobId: job.id,
@@ -99,14 +99,14 @@ export class JobService {
     }));
   }
 
-  async cancelJob(jobId: string, userId: string) {
+  async cancelJob(jobId: string, userId: string, role?: string) {
     const job = await this.jobRepository.findById(jobId);
 
     if (!job) {
       throw new Error("Job not found");
     }
 
-    if (job.userId !== userId) {
+    if (role !== "ADMIN" && job.userId !== userId) {
       throw new Error("Forbidden");
     }
 
@@ -127,14 +127,14 @@ export class JobService {
     };
   }
 
-  async retryJob(jobId: string, userId: string) {
+  async retryJob(jobId: string, userId: string, role?: string) {
     const job = await this.jobRepository.findById(jobId);
 
     if (!job) {
       throw new Error("Job not found");
     }
 
-    if (job.userId !== userId) {
+    if (role !== "ADMIN" && job.userId !== userId) {
       throw new Error("Forbidden");
     }
 

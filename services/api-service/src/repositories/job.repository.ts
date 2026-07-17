@@ -21,8 +21,8 @@ export class JobRepository {
     });
   }
 
-  async findByUserId(userId: string) {
-    if (userId === "admin") {
+  async findByUserId(userId: string, role?: string) {
+    if (role === "ADMIN") {
       return prisma.job.findMany({
         orderBy: { createdAt: "desc" },
       });
