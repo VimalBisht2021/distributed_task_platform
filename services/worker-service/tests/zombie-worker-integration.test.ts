@@ -31,7 +31,7 @@ vi.mock("../src/processors/job.processor", () => {
         }
       });
       
-      return { resultType: "TEXT", content: "zombie result" };
+      return { resultType: "TEXT", payload: { content: "zombie result" } };
     })
   };
 });

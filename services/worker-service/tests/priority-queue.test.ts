@@ -10,7 +10,7 @@ const prisma = new PrismaClient();
 vi.mock("../src/processors/job.processor", () => ({
   processJob: vi.fn().mockResolvedValue({
     resultType: "TEXT",
-    content: "test result",
+    payload: { content: "test result" },
   }),
 }));
 
