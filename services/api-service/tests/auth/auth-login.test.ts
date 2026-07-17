@@ -49,7 +49,7 @@ describe("POST /auth/login", () => {
 
     expect(response.status).toBe(200);
     // The response body should be a JWT string (3 dot-separated base64 segments)
-    expect(response.body).toMatch(/^[\w-]+\.[\w-]+\.[\w-]+$/);
+    expect(response.body.token).toMatch(/^[\w-]+\.[\w-]+\.[\w-]+$/);
   });
 
   it("rejects login with wrong password", async () => {

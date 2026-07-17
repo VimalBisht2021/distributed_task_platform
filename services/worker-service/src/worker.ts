@@ -94,6 +94,7 @@ export async function processOneJob(workerId: string) {
         completedAt: new Date(),
         failureReason: null,
         progress: 100,
+        workerId: null,
         version: {
           increment: 1,
         },
@@ -191,6 +192,7 @@ export async function processOneJob(workerId: string) {
         data: {
           status: "FAILED",
           failureReason: message,
+          workerId: null,
           version: {
             increment: 1,
           },

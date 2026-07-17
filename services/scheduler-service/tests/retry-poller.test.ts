@@ -11,7 +11,7 @@ describe("Retry Poller / Virtual Queue", () => {
   let testJobId: string;
 
   beforeEach(async () => {
-    await redisClient.del(REDIS_KEYS.MAIN_QUEUE);
+    await redisClient.del(REDIS_KEYS.QUEUE_MEDIUM);
     await redisClient.del(REDIS_KEYS.PROCESSING_QUEUE);
 
     await prisma.jobEvent.deleteMany();
@@ -41,7 +41,7 @@ describe("Retry Poller / Virtual Queue", () => {
   });
 
   afterEach(async () => {
-    await redisClient.del(REDIS_KEYS.MAIN_QUEUE);
+    await redisClient.del(REDIS_KEYS.QUEUE_MEDIUM);
     await redisClient.del(REDIS_KEYS.PROCESSING_QUEUE);
     await prisma.jobEvent.deleteMany();
     await prisma.result.deleteMany();
@@ -61,7 +61,7 @@ describe("Retry Poller / Virtual Queue", () => {
     expect(updatedJob?.nextRetryAt).toBeNull();
     
     // Verify Redis State
-    const mainQueue = await redisClient.lrange(REDIS_KEYS.MAIN_QUEUE, 0, -1);
+    const mainQueue = await redisClient.lrange(REDIS_KEYS.QUEUE_MEDIUM, 0, -1);
     expect(mainQueue).toContain(testJobId);
 
     // Verify Events
@@ -81,7 +81,7 @@ describe("Retry Poller / Virtual Queue", () => {
     const processedCount = await retryService.processRetries();
     expect(processedCount).toBe(0);
 
-    const mainQueue = await redisClient.lrange(REDIS_KEYS.MAIN_QUEUE, 0, -1);
+    const mainQueue = await redisClient.lrange(REDIS_KEYS.QUEUE_MEDIUM, 0, -1);
     expect(mainQueue).not.toContain(testJobId);
   });
 });

@@ -37,7 +37,7 @@ beforeEach(async () => {
       password: "securepass123",
     });
 
-  validToken = loginResponse.body;
+  validToken = loginResponse.body.token;
 });
 
 afterEach(async () => {
@@ -132,7 +132,7 @@ describe("JWT Token Validation", () => {
       });
 
     expect(loginResponse.status).toBe(200);
-    const token = loginResponse.body;
+    const token = loginResponse.body.token;
 
     // Access protected route
     const meResponse = await request(app)

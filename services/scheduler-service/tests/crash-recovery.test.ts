@@ -39,7 +39,7 @@ describe("E2E Crash Recovery Pipeline", () => {
       }
     });
     testJobId = job.id;
-    await redisClient.lpush(REDIS_KEYS.MAIN_QUEUE, testJobId);
+    await redisClient.lpush(REDIS_KEYS.QUEUE_MEDIUM, testJobId);
   });
 
   afterEach(async () => {
@@ -51,7 +51,7 @@ describe("E2E Crash Recovery Pipeline", () => {
 
   it("should detect crash, recover job, requeue it, and allow a new worker to complete it", async () => {
     // 2. Simulate Worker A picking up the job
-    await redisClient.rpoplpush(REDIS_KEYS.MAIN_QUEUE, REDIS_KEYS.PROCESSING_QUEUE);
+    await redisClient.rpoplpush(REDIS_KEYS.QUEUE_MEDIUM, REDIS_KEYS.PROCESSING_QUEUE);
     await prisma.job.update({
       where: { id: testJobId },
       data: {
@@ -90,10 +90,10 @@ describe("E2E Crash Recovery Pipeline", () => {
     // Verify Requeued State
     jobState = await prisma.job.findUnique({ where: { id: testJobId } });
     expect(jobState?.status).toBe("QUEUED");
-    expect(await redisClient.lrange(REDIS_KEYS.MAIN_QUEUE, 0, -1)).toContain(testJobId);
+    expect(await redisClient.lrange(REDIS_KEYS.QUEUE_MEDIUM, 0, -1)).toContain(testJobId);
 
     // 6. Simulate Worker B picking up the recovered job
-    await redisClient.rpoplpush(REDIS_KEYS.MAIN_QUEUE, REDIS_KEYS.PROCESSING_QUEUE);
+    await redisClient.rpoplpush(REDIS_KEYS.QUEUE_MEDIUM, REDIS_KEYS.PROCESSING_QUEUE);
     await prisma.job.update({
       where: { id: testJobId },
       data: {

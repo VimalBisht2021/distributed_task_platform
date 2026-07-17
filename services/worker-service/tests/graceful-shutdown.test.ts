@@ -104,7 +104,7 @@ describe("Worker Graceful Shutdown Integration", () => {
     
     // Check logs to ensure graceful sequence happened
     expect(output).toContain("Shutting down worker...");
-    expect(output).toContain("Waiting for current job to finish...");
+    expect(output).toMatch(/Waiting for \d+ current jobs? to finish\.\.\./);
     expect(output).toContain("Worker shutdown complete");
   }, 10000); // 10s timeout should be plenty for a 1s delay
 });
