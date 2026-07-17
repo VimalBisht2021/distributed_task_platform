@@ -43,7 +43,7 @@ afterEach(async () => {
   await prisma.result.deleteMany();
   await prisma.job.deleteMany();
   await prisma.user.deleteMany();
-  await redisClient.del(REDIS_KEYS.MAIN_QUEUE);
+  await redisClient.del(REDIS_KEYS.QUEUE_MEDIUM);
 });
 
 describe("POST /jobs", () => {
@@ -117,7 +117,7 @@ describe("POST /jobs", () => {
 
     expect(response.status).toBe(201);
 
-    const queue = await redisClient.lRange(REDIS_KEYS.MAIN_QUEUE, 0, -1);
+    const queue = await redisClient.lRange(REDIS_KEYS.QUEUE_MEDIUM, 0, -1);
 
     expect(queue).toContain(response.body.jobId);
   });

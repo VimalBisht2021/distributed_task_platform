@@ -4,6 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
     "dev": "ts-node-dev --respawn src/scheduler.ts",
     "build": "tsc",
     "start": "node dist/services/scheduler-service/src/scheduler.js"

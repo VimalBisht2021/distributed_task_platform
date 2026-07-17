@@ -70,7 +70,7 @@ describe("GET /metrics/jobs", () => {
       ],
     });
 
-    const response = await request(app).get("/metrics/jobs");
+    const response = await request(app).get("/metrics/jobs").set("Authorization", `Bearer ${token}`);
 
     expect(response.status).toBe(200);
     expect(response.body.queued).toBe(2);
@@ -82,7 +82,7 @@ describe("GET /metrics/jobs", () => {
   });
 
   it("returns all zeros when no jobs exist", async () => {
-    const response = await request(app).get("/metrics/jobs");
+    const response = await request(app).get("/metrics/jobs").set("Authorization", `Bearer ${token}`);
 
     expect(response.status).toBe(200);
     expect(response.body.queued).toBe(0);
@@ -115,7 +115,7 @@ describe("GET /metrics/workers", () => {
     await redisClient.set("worker:worker-1", worker1, { EX: 30 });
     await redisClient.set("worker:worker-2", worker2, { EX: 30 });
 
-    const response = await request(app).get("/metrics/workers");
+    const response = await request(app).get("/metrics/workers").set("Authorization", `Bearer ${token}`);
 
     expect(response.status).toBe(200);
     expect(response.body.activeWorkers).toBe(2);
@@ -126,7 +126,7 @@ describe("GET /metrics/workers", () => {
   });
 
   it("returns zero metrics when no workers are active", async () => {
-    const response = await request(app).get("/metrics/workers");
+    const response = await request(app).get("/metrics/workers").set("Authorization", `Bearer ${token}`);
 
     expect(response.status).toBe(200);
     expect(response.body.activeWorkers).toBe(0);

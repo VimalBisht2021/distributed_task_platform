@@ -157,7 +157,7 @@ jobs:
         working-directory: services/worker-service
 
       - name: Run Migrations
-        run: npx prisma migrate deploy
+        run: npx prisma db push
         working-directory: services/worker-service
 
       - name: Run Tests
@@ -212,7 +212,7 @@ jobs:
         working-directory: services/scheduler-service
 
       - name: Run Migrations
-        run: npx prisma migrate deploy
+        run: npx prisma db push
         working-directory: services/scheduler-service
 
       - name: Run Tests

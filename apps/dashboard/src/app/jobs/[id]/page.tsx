@@ -21,7 +21,7 @@ export default function JobDetailsPage({ params }: { params: Promise<{ id: strin
   const [loading, setLoading] = useState(true)
   
   const sseUrl = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}/events/stream`
-  const { data: sseEvents, isConnected } = useSSE<{ type: string, payload: any }>(sseUrl)
+  const { data: sseEvents, isConnected } = useSSE<{ type: string, payload: any, jobId: string, timestamp?: string }>(sseUrl)
 
   useEffect(() => {
     api.jobs.get(id).then(j => {

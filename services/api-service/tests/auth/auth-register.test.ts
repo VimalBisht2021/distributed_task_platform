@@ -24,6 +24,10 @@ afterEach(async () => {
   await prisma.result.deleteMany();
   await prisma.job.deleteMany();
   await prisma.user.deleteMany();
+  const keys = await redisClient.keys("ratelimit:*");
+  if (keys.length > 0) {
+    await redisClient.del(keys);
+  }
 });
 
 describe("POST /auth/register", () => {
