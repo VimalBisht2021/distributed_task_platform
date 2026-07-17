@@ -88,6 +88,8 @@ model Result {
 
   resultUrl String
 
+  payload Json?
+
   createdAt DateTime @default(now())
 
   job Job @relation(fields: [jobId], references: [id])

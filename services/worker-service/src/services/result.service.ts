@@ -7,13 +7,15 @@ export class ResultService {
     jobId: string,
     resultType: string,
     resultUrl: string,
-    size?: number
+    size?: number,
+    payload?: any
   ) {
     return this.repository.create(
       jobId,
       resultType,
       resultUrl,
-      size
+      size,
+      payload
     );
   }
 }

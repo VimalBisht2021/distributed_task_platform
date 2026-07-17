@@ -7,7 +7,8 @@ export class ResultRepository {
     jobId: string,
     resultType: string,
     resultUrl: string,
-    size?: number
+    size?: number,
+    payload?: any
   ) {
     return prisma.result.create({
       data: {
@@ -15,6 +16,7 @@ export class ResultRepository {
         resultType,
         resultUrl,
         size,
+        payload,
       },
     });
   }

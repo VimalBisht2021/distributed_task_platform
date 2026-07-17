@@ -6,7 +6,7 @@ The Scheduler is the coordination layer of the platform.
 
 Unlike workers, the scheduler does not execute jobs. Instead, it monitors workers, manages retries, handles lease expiration, recovers failed jobs, and ensures reliable execution across the cluster.
 
-The scheduler acts as the control plane of the distributed task processing platform.
+The scheduler acts as the coordination plane of the distributed task processing platform.
 
 ---
 
@@ -566,4 +566,4 @@ Design Decisions
 
 Summary
 
-The Scheduler serves as the control plane of the distributed task processing platform. It monitors workers, manages leases, coordinates retries, handles failures, processes events, and ensures reliable recovery from crashes. Through leader election, heartbeat monitoring, lease management, and event-driven coordination, the scheduler provides fault-tolerant and scalable orchestration of the entire system.
+The Scheduler serves as the coordination plane of the distributed task processing platform. It monitors workers, manages leases, coordinates retries, handles failures, processes events, and ensures reliable recovery from crashes. Through leader election, heartbeat monitoring, lease management, and event-driven coordination, the scheduler provides fault-tolerant and scalable orchestration of the entire system.

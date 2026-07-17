@@ -9,7 +9,13 @@ import crypto from "crypto";
 import { redisClient, redisBlockingClient } from "./redis/redisClient";
 import { REDIS_KEYS } from "./redis/keys";
 import { getRetryDelay } from "./utils/retry";
-import { jobsCompletedCounter, jobsFailedCounter, jobsRetriedCounter, jobProcessingDuration, queueWaitDuration } from "./metrics/metrics";
+import {
+  jobsCompletedCounter,
+  jobsFailedCounter,
+  jobsRetriedCounter,
+  jobProcessingDuration,
+  queueWaitDuration,
+} from "./metrics/metrics";
 import { startMetricsServer, stopMetricsServer } from "./metrics/server";
 
 const prisma = new PrismaClient();
@@ -24,7 +30,7 @@ const MAX_RETRIES = 4;
 export let shuttingDown = false;
 let shutdownStarted = false;
 const currentJobPromises: Set<Promise<boolean>> = new Set();
-const CONCURRENCY = parseInt(process.env.WORKER_CONCURRENCY || '1', 10);
+const CONCURRENCY = parseInt(process.env.WORKER_CONCURRENCY || "1", 10);
 
 export async function processOneJob(workerId: string) {
   const jobId = await waitForJob(() => shuttingDown);
@@ -44,13 +50,11 @@ export async function processOneJob(workerId: string) {
 
   const queueWaitSeconds = (Date.now() - job.createdAt.getTime()) / 1000;
 
-  console.log(
-    `[${workerId}] ${new Date().toISOString()} Processing ${jobId}`,
-  );
+  console.log(`[${workerId}] ${new Date().toISOString()} Processing ${jobId}`);
 
   let currentVersion = job.version;
   let endTimer: (() => number) | undefined;
-  
+
   try {
     const updateResult = await prisma.job.updateMany({
       where: { id: jobId, version: currentVersion },
@@ -76,15 +80,16 @@ export async function processOneJob(workerId: string) {
     await eventService.createEvent(jobId, "JOB_STARTED", workerId);
 
     endTimer = jobProcessingDuration.startTimer();
-    
+
     // The processor will be mocked in tests
-    const result = await processJob(jobId, job.payload);
+    const result = await processJob(jobId, job.jobType, job.payload);
 
     await resultService.createResult(
       jobId,
       result.resultType,
       `/results/${jobId}.json`,
       JSON.stringify(result).length,
+      result.payload
     );
 
     const compResult = await prisma.job.updateMany({
@@ -102,7 +107,9 @@ export async function processOneJob(workerId: string) {
     });
 
     if (compResult.count === 0) {
-      console.log(`[${workerId}] Zombie worker detected on COMPLETE for ${jobId}`);
+      console.log(
+        `[${workerId}] Zombie worker detected on COMPLETE for ${jobId}`,
+      );
       await workerService.decrementLoad(workerId);
       return false;
     }
@@ -114,13 +121,11 @@ export async function processOneJob(workerId: string) {
 
     jobsCompletedCounter.inc();
     endTimer();
-    
+
     await eventService.createEvent(jobId, "JOB_COMPLETED", workerId);
 
-    console.log(
-      `[${workerId}] ${new Date().toISOString()} Completed ${jobId}`,
-    );
-    
+    console.log(`[${workerId}] ${new Date().toISOString()} Completed ${jobId}`);
+
     return true;
   } catch (error) {
     endTimer?.();
@@ -162,26 +167,23 @@ export async function processOneJob(workerId: string) {
       });
 
       if (retryResult.count === 0) {
-        console.log(`[${workerId}] Zombie worker detected on RETRY for ${jobId}`);
+        console.log(
+          `[${workerId}] Zombie worker detected on RETRY for ${jobId}`,
+        );
         await workerService.decrementLoad(workerId);
         return false;
       }
 
       currentVersion++;
       jobsRetriedCounter.inc();
-      
+
       await redisClient.lrem(REDIS_KEYS.PROCESSING_QUEUE, 1, jobId);
       await workerService.decrementLoad(workerId);
 
-      await eventService.createEvent(
-        jobId,
-        "JOB_RETRY_SCHEDULED",
-        workerId,
-        {
-          retryCount: nextRetryCount,
-          reason: message,
-        },
-      );
+      await eventService.createEvent(jobId, "JOB_RETRY_SCHEDULED", workerId, {
+        retryCount: nextRetryCount,
+        reason: message,
+      });
 
       console.log(
         `Retry ${nextRetryCount}/${MAX_RETRIES} scheduled for ${jobId}`,
@@ -200,7 +202,9 @@ export async function processOneJob(workerId: string) {
       });
 
       if (failResult.count === 0) {
-        console.log(`[${workerId}] Zombie worker detected on FAIL for ${jobId}`);
+        console.log(
+          `[${workerId}] Zombie worker detected on FAIL for ${jobId}`,
+        );
         await workerService.decrementLoad(workerId);
         return false;
       }
@@ -224,7 +228,7 @@ export async function processOneJob(workerId: string) {
         `Job ${jobId} moved to DLQ after ${freshJob.retryCount} retries`,
       );
     }
-    
+
     return false;
   }
 }
@@ -266,7 +270,9 @@ export async function shutdown() {
 
   try {
     if (currentJobPromises.size > 0) {
-      console.log(`Waiting for ${currentJobPromises.size} current jobs to finish...`);
+      console.log(
+        `Waiting for ${currentJobPromises.size} current jobs to finish...`,
+      );
       await Promise.all(currentJobPromises);
     }
 

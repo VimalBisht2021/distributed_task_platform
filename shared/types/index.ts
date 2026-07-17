@@ -19,6 +19,15 @@ export interface JobDto {
   events?: JobEventDto[];
 }
 
+export interface JobResultDto {
+  jobId: string;
+  resultType: string;
+  resultUrl: string;
+  size?: number;
+  payload?: any;
+  createdAt: Date;
+}
+
 export interface WorkerDto {
   workerId: string;
   status: string;

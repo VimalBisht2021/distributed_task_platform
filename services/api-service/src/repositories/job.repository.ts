@@ -62,5 +62,11 @@ export class JobRepository {
     });
   }
 
-  
+  async getResult(jobId: string) {
+    return prisma.result.findUnique({
+      where: {
+        jobId,
+      },
+    });
+  }
 }

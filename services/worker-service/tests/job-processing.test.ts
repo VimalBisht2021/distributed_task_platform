@@ -8,8 +8,8 @@ const prisma = new PrismaClient();
 // Mock the business logic processor so we test worker orchestration, not the actual task
 vi.mock("../src/processors/job.processor", () => ({
   processJob: vi.fn().mockResolvedValue({
-    resultType: "TEXT",
-    content: "test result",
+    resultType: "JSON",
+    payload: { text: "test result" },
   }),
 }));
 
@@ -76,7 +76,8 @@ describe("Worker E2E Processing", () => {
     // Assert Result Creation
     const result = await prisma.result.findUnique({ where: { jobId: testJobId } });
     expect(result).not.toBeNull();
-    expect(result?.resultType).toBe("TEXT");
+    expect(result?.resultType).toBe("JSON");
+    expect(result?.payload).toEqual({ text: "test result" });
 
     // Assert Event Logging
     const events = await prisma.jobEvent.findMany({ 

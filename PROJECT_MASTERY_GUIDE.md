@@ -59,7 +59,7 @@ graph TD
 2. **Worker Service**: The engine. Uses polling to fetch jobs from Redis, executes business logic, updates Postgres with the final state, and emits telemetry events.
 3. **Scheduler Service**: The janitor. Uses Leader Election to ensure only one instance runs. Sweeps the database for delayed jobs and dead workers, pushing them back into Redis.
 4. **Lab Service**: The chaos monkey. Uses Docker-out-of-Docker to physically kill or pause containers to validate system resilience.
-5. **Dashboard**: The control plane. Visualizes the distributed state.
+5. **Dashboard**: The operations console. Visualizes the distributed state.
 
 **Why this design?**
 By separating the API, Worker, and Scheduler, the system can scale asymmetrically. If job throughput spikes, we scale Workers. If HTTP ingress spikes, we scale the API. The Scheduler is kept separate to prevent heavy DB sweeping queries from impacting API latency.

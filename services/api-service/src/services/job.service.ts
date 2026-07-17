@@ -1,5 +1,5 @@
 import { CreateJobDto } from "../dto/create-job.dto";
-import { JobDto } from "../../../../shared/types";
+import { JobDto, JobResultDto } from "../../../../shared/types";
 import { JobRepository } from "../repositories/job.repository";
 import { enqueueJob } from "../redis/queues";
 import { EventService } from "./event.service";
@@ -148,6 +148,33 @@ export class JobService {
       jobId: updatedJob.id,
       status: updatedJob.status,
       retryCount: updatedJob.retryCount,
+    };
+  }
+
+  async getJobResult(jobId: string, userId: string, role?: string): Promise<JobResultDto> {
+    const job = await this.jobRepository.findById(jobId);
+
+    if (!job) {
+      throw new Error("Job not found");
+    }
+
+    if (role !== "ADMIN" && job.userId !== userId) {
+      throw new Error("Forbidden");
+    }
+
+    const result = await this.jobRepository.getResult(jobId);
+
+    if (!result) {
+      throw new Error("Result not found");
+    }
+
+    return {
+      jobId: result.jobId,
+      resultType: result.resultType,
+      resultUrl: result.resultUrl,
+      size: result.size || undefined,
+      payload: result.payload || undefined,
+      createdAt: result.createdAt,
     };
   }
 }
