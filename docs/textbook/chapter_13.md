@@ -26,7 +26,8 @@ Tracing tracks a single user request as it travels through every microservice.
 **Mental Model: The Tracking Number**
 > When you mail a package via FedEx, they attach a Barcode (Trace ID). Every time the package enters a truck, a warehouse, or an airplane (Microservices), the barcode is scanned. You can view the entire journey on a timeline.
 
-When the API receives a request, it generates a unique `trace_id`. It attaches this ID to the job payload. When the Worker pulls the job from Redis, it reads the `trace_id` and includes it in all of its logs. 
+**📍 Our Project (Aspirational Design):** 
+While our codebase fully implements Logging and Metrics, Distributed Tracing is an *aspirational* target design not currently implemented. When implemented in the future, the API will generate a unique `trace_id` and attach it to the job payload. When the Worker pulls the job from Redis, it will read the `trace_id` and include it in all of its logs, allowing us to stitch the distributed logs back together in a tool like Datadog.
 
 ---
 

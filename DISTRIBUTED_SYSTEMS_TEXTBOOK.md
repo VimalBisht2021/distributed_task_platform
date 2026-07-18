@@ -448,16 +448,29 @@ stateDiagram-v2
 
 ---
 
-## 3. Connection Starvation (The BRPOP Bug)
+## 3. Connection Starvation & The Polling Dilemma
 
 If we constantly ask Redis `RPOPLPUSH` and the queue is empty, we burn CPU cycles in an infinite `while(true)` loop.
-To solve this, we use `BRPOPLPUSH` (Blocking). Redis puts the connection to sleep and wakes it up the exact millisecond a job arrives.
+The textbook solution is to use `BRPOPLPUSH` (Blocking). Redis puts the connection to sleep and wakes it up the exact millisecond a job arrives.
 
 ### What can go wrong? (A Real Bug)
-Our workers send a "Heartbeat" to Redis every 5 seconds. However, they were using the exact same Redis connection that was Blocked by `BRPOPLPUSH`. 
+In early development, our workers sent a "Heartbeat" to Redis every 5 seconds. However, they were using the exact same Redis connection that was Blocked by `BRPOPLPUSH`. 
 Because the connection was asleep, the Heartbeat was never sent. The Scheduler assumed the worker was dead!
 
-**The Fix:** We instantiated two separate Redis clients. `redisClient` handles heartbeats, while `redisBlockingClient` sits in the blocked state.
+**The Fix:** We provisioned two separate Redis clients: `redisClient` handles heartbeats, while `redisQueueClient` was built for queue operations.
+
+### Lessons Learned: Strict Priority vs. Atomic Blocking
+Despite provisioning `redisQueueClient` specifically for blocking, if you read our `consumer.ts` code, you will notice we *do not actually use* `BRPOPLPUSH`. We use `RPOPLPUSH` and fall back to a `setTimeout(500)` polling loop. Why?
+
+Because **`BRPOPLPUSH` blocks on a *single* source list.**
+We implemented strict priority queues (`CRITICAL`, `HIGH`, `MEDIUM`, `LOW`). If we block on `CRITICAL`, we starve the others. If we block sequentially, we are just polling slowly. 
+
+**The architectural trade-off:** 
+1. Use `BRPOPLPUSH` and sacrifice strict priority.
+2. Use Redis 7's `BLMPOP`, which blocks on multiple lists and honors priority, but loses the atomic reliable-move of `RPOPLPUSH` (requiring a complex Lua script to manually emulate the safe move).
+3. Use `RPOPLPUSH` with a 500ms sleep.
+
+We chose option 3. We accepted 500ms of latency to guarantee absolute atomic reliability *and* strict priority routing.
 
 ---
 
@@ -1274,7 +1287,8 @@ Tracing tracks a single user request as it travels through every microservice.
 **Mental Model: The Tracking Number**
 > When you mail a package via FedEx, they attach a Barcode (Trace ID). Every time the package enters a truck, a warehouse, or an airplane (Microservices), the barcode is scanned. You can view the entire journey on a timeline.
 
-When the API receives a request, it generates a unique `trace_id`. It attaches this ID to the job payload. When the Worker pulls the job from Redis, it reads the `trace_id` and includes it in all of its logs. 
+**📍 Our Project (Aspirational Design):** 
+While our codebase fully implements Logging and Metrics, Distributed Tracing is an *aspirational* target design not currently implemented. When implemented in the future, the API will generate a unique `trace_id` and attach it to the job payload. When the Worker pulls the job from Redis, it will read the `trace_id` and include it in all of its logs, allowing us to stitch the distributed logs back together in a tool like Datadog.
 
 ---
 

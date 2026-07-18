@@ -147,7 +147,9 @@ export async function processOneJob(workerId: string) {
 
     if (freshJob.retryCount < MAX_RETRIES) {
       const nextRetryCount = freshJob.retryCount + 1;
-      const delaySeconds = getRetryDelay(nextRetryCount);
+      const baseDelaySeconds = getRetryDelay(nextRetryCount);
+      // Equal jitter: Keep 50% of base delay, randomize the rest
+      const delaySeconds = baseDelaySeconds * (0.5 + Math.random() * 0.5);
       const nextRetryAt = new Date(Date.now() + delaySeconds * 1000);
 
       const retryResult = await prisma.job.updateMany({
