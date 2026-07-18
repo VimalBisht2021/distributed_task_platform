@@ -6,7 +6,7 @@ import { ResultService } from "./services/result.service";
 import { WorkerService } from "./services/worker.service";
 import { startHeartbeat, stopHeartbeat } from "./heartbeat";
 import crypto from "crypto";
-import { redisClient, redisBlockingClient } from "./redis/redisClient";
+import { redisClient, redisQueueClient } from "./redis/redisClient";
 import { REDIS_KEYS } from "./redis/keys";
 import { getRetryDelay } from "./utils/retry";
 import {
@@ -284,7 +284,7 @@ export async function shutdown() {
     await redisClient.srem("workers:active", WORKER_ID);
 
     await redisClient.quit();
-    await redisBlockingClient.quit();
+    await redisQueueClient.quit();
     await prisma.$disconnect();
 
     console.log("Worker shutdown complete");

@@ -7,11 +7,10 @@ export const redisClient = new Redis({
   port: parseInt(process.env.REDIS_PORT || "6379"),
 });
 
-// Dedicated connection for blocking operations (BRPOP).
-// BRPOP with timeout 0 blocks the entire connection, so it MUST
-// run on a separate client — otherwise heartbeat commands queue
-// behind it and never execute, causing the worker key TTL to expire.
-export const redisBlockingClient = new Redis({
+// Dedicated connection originally anticipated for blocking operations (BRPOPLPUSH).
+// Although we currently fall back to polling with RPOPLPUSH (to maintain strict priority queues),
+// we keep this separate client to isolate the heavy queue operations from heartbeat pings.
+export const redisQueueClient = new Redis({
   host: process.env.REDIS_HOST || "localhost",
   port: parseInt(process.env.REDIS_PORT || "6379"),
 });
@@ -20,14 +19,14 @@ redisClient.on("connect", () => {
   console.log("Redis connected");
 });
 
-redisBlockingClient.on("connect", () => {
-  console.log("Redis blocking client connected");
+redisQueueClient.on("connect", () => {
+  console.log("Redis queue client connected");
 });
 
 redisClient.on("error", (err) => {
   console.error("Redis error:", err);
 });
 
-redisBlockingClient.on("error", (err) => {
-  console.error("Redis blocking client error:", err);
+redisQueueClient.on("error", (err) => {
+  console.error("Redis queue client error:", err);
 });

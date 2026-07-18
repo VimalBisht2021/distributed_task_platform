@@ -1,11 +1,11 @@
-import { redisBlockingClient } from "../redis/redisClient";
+import { redisQueueClient } from "../redis/redisClient";
 import { PRIORITY_QUEUES, REDIS_KEYS } from "../../../../shared/constants/redis";
 
 export async function waitForJob(isShuttingDown: () => boolean) {
   while (!isShuttingDown()) {
     // Check priority queues in order: CRITICAL → HIGH → MEDIUM → LOW
     for (const queue of PRIORITY_QUEUES) {
-      const jobId = await redisBlockingClient.rpoplpush(
+      const jobId = await redisQueueClient.rpoplpush(
         queue,
         "processing-queue",
       );
@@ -15,7 +15,7 @@ export async function waitForJob(isShuttingDown: () => boolean) {
     }
 
     // Backward compatibility: also check the old main-queue
-    const fallbackJobId = await redisBlockingClient.rpoplpush(
+    const fallbackJobId = await redisQueueClient.rpoplpush(
       "main-queue",
       "processing-queue",
     );
