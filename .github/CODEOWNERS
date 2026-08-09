@@ -1,0 +1,5 @@
+# These owners will be the default reviewers for pull requests in these directories
+
+*       @VimalBisht2021
+/docs/  @VimalBisht2021
+/plugins/ @VimalBisht2021

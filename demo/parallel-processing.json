@@ -1,0 +1,83 @@
+{
+  "id": "parallel-processing-demo",
+  "name": "Parallel Data Processing",
+  "version": "1.0.0",
+  "entryTaskId": "start-parallel",
+  "tasks": [
+    {
+      "id": "start-parallel",
+      "pluginId": "core/parallel",
+      "name": "Split Processing",
+      "config": {
+        "branches": ["process-a", "process-b", "process-c"]
+      },
+      "routes": {}
+    },
+    {
+      "id": "process-a",
+      "pluginId": "core/script",
+      "name": "Process Segment A",
+      "config": {
+        "script": "return { result: 'A done' };"
+      },
+      "routes": {
+        "default": "join-results"
+      }
+    },
+    {
+      "id": "process-b",
+      "pluginId": "core/script",
+      "name": "Process Segment B",
+      "config": {
+        "script": "return { result: 'B done' };"
+      },
+      "routes": {
+        "default": "join-results"
+      }
+    },
+    {
+      "id": "process-c",
+      "pluginId": "core/script",
+      "name": "Process Segment C",
+      "config": {
+        "script": "return { result: 'C done' };"
+      },
+      "routes": {
+        "default": "join-results"
+      }
+    },
+    {
+      "id": "join-results",
+      "pluginId": "core/join",
+      "name": "Wait for All",
+      "config": {},
+      "routes": {
+        "default": "notify-success"
+      }
+    },
+    {
+      "id": "notify-success",
+      "pluginId": "core/email",
+      "name": "Notify Success",
+      "config": {
+        "to": "team@example.com",
+        "subject": "Parallel Processing Complete",
+        "body": "All three branches finished successfully."
+      },
+      "routes": {}
+    }
+  ],
+  "metadata": {
+    "layout": {
+      "nodePositions": {
+        "start-parallel": { "x": 300, "y": 100 },
+        "process-a": { "x": 100, "y": 300 },
+        "process-b": { "x": 300, "y": 300 },
+        "process-c": { "x": 500, "y": 300 },
+        "join-results": { "x": 300, "y": 500 },
+        "notify-success": { "x": 300, "y": 700 }
+      }
+    }
+  },
+  "schemaVersion": 1
+}

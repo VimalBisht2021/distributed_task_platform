@@ -90,36 +90,18 @@ services:
     volumes:
       - grafana_data:/var/lib/grafana
 
-  lab-service:
-    build:
-      context: .
-      dockerfile: services/lab-service/Dockerfile
-    container_name: task-platform-lab
-    restart: unless-stopped
-    ports:
-      - "3006:3006"
-    environment:
-      - API_URL=http://api-service:3000
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-      - ./:/host
-    depends_on:
-      - api-service
-
   dashboard:
     build:
       context: .
       dockerfile: apps/dashboard/Dockerfile
       args:
         NEXT_PUBLIC_API_URL: http://localhost:3000
-        NEXT_PUBLIC_LAB_SERVICE_URL: http://localhost:3006
     container_name: task-platform-dashboard
     restart: unless-stopped
     ports:
       - "3001:3001"
     depends_on:
       - api-service
-      - lab-service
 
 volumes:
   postgres_data:

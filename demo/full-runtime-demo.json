@@ -1,0 +1,137 @@
+{
+  "id": "full-runtime-demo",
+  "name": "Full Runtime Capabilities Demo",
+  "version": "1.0.0",
+  "entryTaskId": "webhook-trigger",
+  "tasks": [
+    {
+      "id": "webhook-trigger",
+      "pluginId": "core/http",
+      "name": "Incoming Webhook",
+      "config": {
+        "url": "https://api.example.com/webhook",
+        "method": "GET"
+      },
+      "routes": {
+        "default": "validate-payload"
+      }
+    },
+    {
+      "id": "validate-payload",
+      "pluginId": "core/condition",
+      "name": "Validate Payload",
+      "config": {
+        "expression": "webhook-trigger.output.status === 'valid'"
+      },
+      "routes": {
+        "conditional": {
+          "true": "start-parallel",
+          "false": "reject-payload"
+        }
+      }
+    },
+    {
+      "id": "reject-payload",
+      "pluginId": "core/email",
+      "name": "Send Rejection",
+      "config": {
+        "to": "admin@example.com",
+        "subject": "Invalid Payload Received",
+        "body": "Payload was rejected."
+      },
+      "routes": {}
+    },
+    {
+      "id": "start-parallel",
+      "pluginId": "core/parallel",
+      "name": "Parallel Execution",
+      "config": {
+        "branches": ["email-customer", "ai-summarize", "script-process"]
+      },
+      "routes": {}
+    },
+    {
+      "id": "email-customer",
+      "pluginId": "core/email",
+      "name": "Email Customer",
+      "config": {
+        "to": "customer@example.com",
+        "subject": "We received your request",
+        "body": "Thank you for reaching out!"
+      },
+      "routes": {
+        "default": "join-all"
+      }
+    },
+    {
+      "id": "ai-summarize",
+      "pluginId": "core/ai",
+      "name": "AI Summarize",
+      "config": {
+        "prompt": "Summarize this request: {{ webhook-trigger.output.body }}",
+        "model": "gpt-4o",
+        "temperature": 0.5
+      },
+      "routes": {
+        "default": "join-all"
+      }
+    },
+    {
+      "id": "script-process",
+      "pluginId": "core/script",
+      "name": "Script Processing",
+      "config": {
+        "script": "return { processed: true, data: 'Processed by script' };"
+      },
+      "routes": {
+        "default": "join-all"
+      }
+    },
+    {
+      "id": "join-all",
+      "pluginId": "core/join",
+      "name": "Join Branches",
+      "config": {},
+      "routes": {
+        "default": "template-report"
+      }
+    },
+    {
+      "id": "template-report",
+      "pluginId": "core/template",
+      "name": "Generate Report",
+      "config": {
+        "template": "Report:\nAI Summary: {{ ai-summarize.output }}\nScript Result: {{ script-process.output.data }}"
+      },
+      "routes": {
+        "default": "finish-workflow"
+      }
+    },
+    {
+      "id": "finish-workflow",
+      "pluginId": "core/script",
+      "name": "Finish",
+      "config": {
+        "script": "return 'Workflow Complete';"
+      },
+      "routes": {}
+    }
+  ],
+  "metadata": {
+    "layout": {
+      "nodePositions": {
+        "webhook-trigger": { "x": 300, "y": 0 },
+        "validate-payload": { "x": 300, "y": 150 },
+        "reject-payload": { "x": 600, "y": 150 },
+        "start-parallel": { "x": 300, "y": 300 },
+        "email-customer": { "x": 100, "y": 500 },
+        "ai-summarize": { "x": 300, "y": 500 },
+        "script-process": { "x": 500, "y": 500 },
+        "join-all": { "x": 300, "y": 700 },
+        "template-report": { "x": 300, "y": 850 },
+        "finish-workflow": { "x": 300, "y": 1000 }
+      }
+    }
+  },
+  "schemaVersion": 1
+}

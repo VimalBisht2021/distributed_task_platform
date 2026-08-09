@@ -1,0 +1,81 @@
+{
+  "id": "ai-pipeline-demo",
+  "name": "AI Text Analysis Pipeline",
+  "version": "1.0.0",
+  "entryTaskId": "fetch-text",
+  "tasks": [
+    {
+      "id": "fetch-text",
+      "pluginId": "core/http",
+      "name": "Fetch Article",
+      "config": {
+        "url": "https://api.example.com/latest-news",
+        "method": "GET"
+      },
+      "routes": {
+        "default": "analyze-sentiment"
+      }
+    },
+    {
+      "id": "analyze-sentiment",
+      "pluginId": "core/ai",
+      "name": "Sentiment Analysis",
+      "config": {
+        "prompt": "Analyze the sentiment of this text: {{ fetch-text.output.body }}",
+        "model": "gpt-4o",
+        "temperature": 0
+      },
+      "routes": {
+        "default": "check-sentiment"
+      }
+    },
+    {
+      "id": "check-sentiment",
+      "pluginId": "core/condition",
+      "name": "Is Positive?",
+      "config": {
+        "expression": "analyze-sentiment.output.includes('positive')"
+      },
+      "routes": {
+        "conditional": {
+          "true": "publish-article",
+          "false": "flag-for-review"
+        }
+      }
+    },
+    {
+      "id": "publish-article",
+      "pluginId": "core/http",
+      "name": "Publish",
+      "config": {
+        "url": "https://api.example.com/publish",
+        "method": "POST",
+        "body": "{\"status\":\"approved\"}"
+      },
+      "routes": {}
+    },
+    {
+      "id": "flag-for-review",
+      "pluginId": "core/email",
+      "name": "Alert Editors",
+      "config": {
+        "to": "editors@example.com",
+        "subject": "Negative Sentiment Detected",
+        "body": "Article requires manual review."
+      },
+      "routes": {}
+    }
+  ],
+  "metadata": {
+    "layout": {
+      "nodePositions": {
+        "fetch-text": { "x": 300, "y": 100 },
+        "analyze-sentiment": { "x": 300, "y": 300 },
+        "check-sentiment": { "x": 300, "y": 500 },
+        "publish-article": { "x": 100, "y": 700 },
+        "flag-for-review": { "x": 500, "y": 700 }
+      }
+    }
+  },
+  "schemaVersion": 1
+}

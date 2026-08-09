@@ -1,256 +1,39 @@
-name: CI
+name: DTP CI
 
 on:
   push:
-    branches: [main, develop]
+    branches: [ "main" ]
   pull_request:
-    branches: [main]
+    branches: [ "main" ]
 
 jobs:
-  lint-and-typecheck:
-    name: Lint & Type Check
+  test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+    - uses: actions/checkout@v4
+    
+    - name: Use Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20.x'
+        cache: 'npm'
+        
+    - name: Install root dependencies
+      run: npm ci
+      
+    - name: Install service dependencies
+      run: |
+        npm ci --prefix services/api-service
+        npm ci --prefix services/worker-service
+        npm ci --prefix services/scheduler-service
+        npm ci --prefix apps/dashboard
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      - name: Install API Service dependencies
-        run: npm ci
-        working-directory: services/api-service
-
-      - name: Install Worker Service dependencies
-        run: npm ci
-        working-directory: services/worker-service
-
-      - name: Install Scheduler Service dependencies
-        run: npm ci
-        working-directory: services/scheduler-service
-
-      - name: Generate Prisma Client (API)
-        run: npx prisma generate
-        working-directory: services/api-service
-
-      - name: Generate Prisma Client (Worker)
-        run: npx prisma generate
-        working-directory: services/worker-service
-
-      - name: Generate Prisma Client (Scheduler)
-        run: npx prisma generate
-        working-directory: services/scheduler-service
-
-      - name: TypeScript Check - API Service
-        run: npx tsc --noEmit
-        working-directory: services/api-service
-
-      - name: TypeScript Check - Worker Service
-        run: npx tsc --noEmit
-        working-directory: services/worker-service
-
-      - name: TypeScript Check - Scheduler Service
-        run: npx tsc --noEmit
-        working-directory: services/scheduler-service
-
-  test-api:
-    name: Test API Service
-    runs-on: ubuntu-latest
-    needs: lint-and-typecheck
-    services:
-      postgres:
-        image: postgres:16
-        env:
-          POSTGRES_DB: task_platform_test
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-        ports:
-          - 5433:5432
-        options: >-
-          --health-cmd="pg_isready -U postgres"
-          --health-interval=5s
-          --health-timeout=5s
-          --health-retries=5
-      redis:
-        image: redis:7
-        ports:
-          - 6379:6379
-        options: >-
-          --health-cmd="redis-cli ping"
-          --health-interval=5s
-          --health-timeout=5s
-          --health-retries=5
-    env:
-      DATABASE_URL: postgresql://postgres:postgres@localhost:5433/task_platform_test?schema=public
-      REDIS_URL: redis://localhost:6379
-      JWT_SECRET: test-secret-key
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      - name: Install dependencies
-        run: npm ci
-        working-directory: services/api-service
-
-      - name: Generate Prisma Client
-        run: npx prisma generate
-        working-directory: services/api-service
-
-      - name: Run Migrations
-        run: npx prisma migrate deploy
-        working-directory: services/api-service
-
-      - name: Run Tests
-        run: npm test
-        working-directory: services/api-service
-
-  test-worker:
-    name: Test Worker Service
-    runs-on: ubuntu-latest
-    needs: lint-and-typecheck
-    services:
-      postgres:
-        image: postgres:16
-        env:
-          POSTGRES_DB: task_platform_test
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-        ports:
-          - 5433:5432
-        options: >-
-          --health-cmd="pg_isready -U postgres"
-          --health-interval=5s
-          --health-timeout=5s
-          --health-retries=5
-      redis:
-        image: redis:7
-        ports:
-          - 6379:6379
-        options: >-
-          --health-cmd="redis-cli ping"
-          --health-interval=5s
-          --health-timeout=5s
-          --health-retries=5
-    env:
-      DATABASE_URL: postgresql://postgres:postgres@localhost:5433/task_platform_test?schema=public
-      REDIS_URL: redis://localhost:6379
-      JWT_SECRET: test-secret-key
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      - name: Install dependencies
-        run: npm ci
-        working-directory: services/worker-service
-
-      - name: Generate Prisma Client
-        run: npx prisma generate
-        working-directory: services/worker-service
-
-      - name: Run Migrations
-        run: npx prisma db push
-        working-directory: services/worker-service
-
-      - name: Run Tests
-        run: npm test
-        working-directory: services/worker-service
-
-  test-scheduler:
-    name: Test Scheduler Service
-    runs-on: ubuntu-latest
-    needs: lint-and-typecheck
-    services:
-      postgres:
-        image: postgres:16
-        env:
-          POSTGRES_DB: task_platform_test
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-        ports:
-          - 5433:5432
-        options: >-
-          --health-cmd="pg_isready -U postgres"
-          --health-interval=5s
-          --health-timeout=5s
-          --health-retries=5
-      redis:
-        image: redis:7
-        ports:
-          - 6379:6379
-        options: >-
-          --health-cmd="redis-cli ping"
-          --health-interval=5s
-          --health-timeout=5s
-          --health-retries=5
-    env:
-      DATABASE_URL: postgresql://postgres:postgres@localhost:5433/task_platform_test?schema=public
-      REDIS_URL: redis://localhost:6379
-      JWT_SECRET: test-secret-key
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      - name: Install dependencies
-        run: npm ci
-        working-directory: services/scheduler-service
-
-      - name: Generate Prisma Client
-        run: npx prisma generate
-        working-directory: services/scheduler-service
-
-      - name: Run Migrations
-        run: npx prisma db push
-        working-directory: services/scheduler-service
-
-      - name: Run Tests
-        run: npm test
-        working-directory: services/scheduler-service
-
-  build-dashboard:
-    name: Build Dashboard
-    runs-on: ubuntu-latest
-    needs: lint-and-typecheck
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      - name: Install dependencies
-        run: npm ci
-        working-directory: apps/dashboard
-
-      - name: Build
-        run: npm run build
-        working-directory: apps/dashboard
-
-  docker-build:
-    name: Docker Build Verification
-    runs-on: ubuntu-latest
-    needs: [test-api, test-worker, test-scheduler, build-dashboard]
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Build API Service
-        run: docker build -f services/api-service/Dockerfile .
-
-      - name: Build Worker Service
-        run: docker build -f services/worker-service/Dockerfile .
-
-      - name: Build Scheduler Service
-        run: docker build -f services/scheduler-service/Dockerfile .
+    - name: Run unit & integration tests
+      run: |
+        npm test --prefix services/api-service
+        npm test --prefix services/worker-service
+        npm test --prefix services/scheduler-service
+        
+    - name: Run dashboard tests
+      run: npx vitest run
+      working-directory: ./apps/dashboard

@@ -16,12 +16,17 @@ app.get("/metrics", async (_req, res) => {
 const prisma = new PrismaClient();
 let shutdownStarted = false;
 
+import { WebhookDispatcherService } from "./integration/webhook-dispatcher.service";
+
 const server = app.listen(PORT, async () => {
   console.log(`API Service running on port ${PORT}`);
 
   await redisClient.connect();
   await redisBlockingClient.connect();
   console.log("Connected to Redis");
+
+  const webhookDispatcher = new WebhookDispatcherService();
+  webhookDispatcher.start();
 });
 
 async function shutdown() {

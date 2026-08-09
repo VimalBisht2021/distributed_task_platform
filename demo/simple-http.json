@@ -1,0 +1,40 @@
+{
+  "id": "simple-http-demo",
+  "name": "Simple HTTP Fetch",
+  "version": "1.0.0",
+  "entryTaskId": "fetch-user",
+  "tasks": [
+    {
+      "id": "fetch-user",
+      "pluginId": "core/http",
+      "name": "Fetch User Data",
+      "config": {
+        "url": "https://jsonplaceholder.typicode.com/users/1",
+        "method": "GET"
+      },
+      "routes": {
+        "default": "send-email"
+      }
+    },
+    {
+      "id": "send-email",
+      "pluginId": "core/email",
+      "name": "Send Confirmation",
+      "config": {
+        "to": "admin@example.com",
+        "subject": "User Data Fetched",
+        "body": "Successfully retrieved data for {{ fetch-user.output.name }}"
+      },
+      "routes": {}
+    }
+  ],
+  "metadata": {
+    "layout": {
+      "nodePositions": {
+        "fetch-user": { "x": 100, "y": 100 },
+        "send-email": { "x": 100, "y": 300 }
+      }
+    }
+  },
+  "schemaVersion": 1
+}
