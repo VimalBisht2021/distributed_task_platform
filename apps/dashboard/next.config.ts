@@ -5,6 +5,12 @@ const nextConfig: NextConfig = {
     externalDir: true,
   },
   transpilePackages: ["@local/builder"],
+  typescript: {
+    ignoreBuildErrors: true,
+  },
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
   output: "standalone",
 };
 

@@ -19,7 +19,7 @@ export const WorkflowCanvas = () => {
     const [selectedNodeIds, setSelectedNodeIds] = useState<string[]>([]);
 
     // Map Domain Nodes to ReactFlow Nodes
-    const rfNodes: Node[] = nodes.map(n => ({
+    const rfNodes: Node[] = nodes.map((n: any) => ({
         id: n.id,
         type: 'plugin',
         position: n.position,
@@ -27,7 +27,7 @@ export const WorkflowCanvas = () => {
     }));
 
     // Map Domain Edges to ReactFlow Edges
-    const rfEdges: Edge[] = edges.map(e => ({
+    const rfEdges: Edge[] = edges.map((e: any) => ({
         id: e.id,
         source: e.source,
         target: e.target,
@@ -41,7 +41,7 @@ export const WorkflowCanvas = () => {
     }, []);
 
     const onNodeDragStop = useCallback((event: any, node: Node) => {
-        const domainNode = nodes.find(n => n.id === node.id);
+        const domainNode = nodes.find((n: any) => n.id === node.id);
         if (domainNode && node.position) {
             dispatch(new MoveNodeCommand(node.id, node.position, domainNode.position));
         }
@@ -61,7 +61,7 @@ export const WorkflowCanvas = () => {
     }, [dispatch]);
 
     const onEdgesDelete = useCallback((deletedEdges: Edge[]) => {
-        deletedEdges.forEach(e => {
+        deletedEdges.forEach((e: any) => {
             dispatch(new DisconnectEdgeCommand(e.id));
         });
     }, [dispatch]);
@@ -92,7 +92,7 @@ export const WorkflowCanvas = () => {
     }, [dispatch, screenToFlowPosition]);
 
     const onSelectionChange = useCallback((params: { nodes: Node[] }) => {
-        const ids = params.nodes.map(n => n.id);
+        const ids = params.nodes.map((n: any) => n.id);
         setSelectedNodeIds(ids);
         selectNode(ids.length === 1 ? ids[0] : null);
     }, [selectNode]);

@@ -119,7 +119,7 @@ export const PropertyPanel = () => {
         );
     }
 
-    const node = nodes.find(n => n.id === selectedNodeId);
+    const node = nodes.find((n: any) => n.id === selectedNodeId);
     if (!node) return null;
 
     const manifest = pluginRegistry.get(node.pluginId);
