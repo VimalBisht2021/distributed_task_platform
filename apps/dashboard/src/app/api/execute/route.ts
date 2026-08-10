@@ -23,7 +23,7 @@ import { InMemoryExecutionMetrics } from '../../../../../../runtime/execution/ex
 
 // ─── Singleton Runtime ──────────────────────────────────────────────
 
-export let runtime: ExecutionRuntime | null = null;
+export let executionRuntime: ExecutionRuntime | null = null;
 export let stateRepo: InMemoryStateRepository | null = null;
 export let journal: ExecutionJournal | null = null;
 export let planner: ExecutionPlanner | null = null;
@@ -35,7 +35,7 @@ class RealClock {
 }
 
 function initializeRuntime() {
-    if (runtime) return;
+    if (executionRuntime) return;
 
     stateRepo = new InMemoryStateRepository();
     const eventLog = new InMemoryEventLog();
@@ -50,11 +50,11 @@ function initializeRuntime() {
     planner = new ExecutionPlanner();
     const parallel = new ParallelSubsystem(journal, scheduler);
 
-    runtime = new ExecutionRuntime(planner, scheduler, journal, dispatcher, parallel);
+    executionRuntime = new ExecutionRuntime(planner, scheduler, journal, dispatcher, parallel);
 
     // Worker loop: process leases against the REAL compiled workflow
     setInterval(async () => {
-        if (!scheduler || !dispatcher || !runtime || !stateRepo) return;
+        if (!scheduler || !dispatcher || !executionRuntime || !stateRepo) return;
 
         try {
             const leases = await scheduler.expire();
@@ -76,7 +76,7 @@ function initializeRuntime() {
                         timestamp: Date.now(),
                     };
 
-                    await runtime.completeTask(
+                    await executionRuntime.completeTask(
                         workflow as any,
                         activeLease.executionId,
                         activeLease.nodeId,
@@ -119,7 +119,7 @@ export async function POST(request: Request) {
 
         initializeRuntime();
 
-        if (!planner || !runtime || !journal) {
+        if (!planner || !executionRuntime || !journal) {
             return NextResponse.json({ error: 'Runtime failed to initialize' }, { status: 500 });
         }
 

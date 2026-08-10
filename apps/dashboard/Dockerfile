@@ -25,7 +25,7 @@ ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 ENV NEXT_PUBLIC_LAB_SERVICE_URL=$NEXT_PUBLIC_LAB_SERVICE_URL
 
 # Note: Using npx next build explicitly for the dashboard workspace
-RUN cd apps/dashboard && npx next build
+RUN cd apps/dashboard && rm -f ../../pnpm-lock.yaml && rm -f ../../package-lock.json && npx next build
 
 # Production image, copy all the files and run next
 FROM base AS runner
