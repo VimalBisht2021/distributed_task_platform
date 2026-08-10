@@ -95,7 +95,7 @@ export class CompilationService {
 
             if (task.routes.conditional) {
                 for (const [outcome, targetId] of Object.entries(task.routes.conditional)) {
-                    if (!taskMap.has(targetId)) {
+                    if (!taskMap.has(targetId as string)) {
                         diagnostics.push({
                             severity: 'error',
                             location: { nodeId: task.id, property: `routes.conditional.${outcome}` },
@@ -169,7 +169,7 @@ export class CompilationService {
             const routingTable = new Map<string, string>();
             if (task.routes.conditional) {
                 for (const [outcome, targetId] of Object.entries(task.routes.conditional)) {
-                    routingTable.set(outcome, targetId);
+                    routingTable.set(outcome, targetId as string);
                 }
             }
 
@@ -207,7 +207,7 @@ export class CompilationService {
             const neighbors: string[] = [];
             if (task.routes.default) neighbors.push(task.routes.default);
             if (task.routes.conditional) {
-                neighbors.push(...Object.values(task.routes.conditional));
+                neighbors.push(...(Object.values(task.routes.conditional) as string[]));
             }
             adj.set(task.id, neighbors);
         }
@@ -251,7 +251,7 @@ export class CompilationService {
             const neighbors: string[] = [];
             if (task.routes.default) neighbors.push(task.routes.default);
             if (task.routes.conditional) {
-                neighbors.push(...Object.values(task.routes.conditional));
+                neighbors.push(...(Object.values(task.routes.conditional) as string[]));
             }
             adj.set(task.id, neighbors);
         }
@@ -279,7 +279,7 @@ export class CompilationService {
             id: definition.id,
             version: definition.version,
             entryTaskId: definition.entryTaskId,
-            tasks: definition.tasks.map(t => ({
+            tasks: definition.tasks.map((t: TaskDefinition) => ({
                 id: t.id,
                 pluginId: t.pluginId,
                 config: t.config,

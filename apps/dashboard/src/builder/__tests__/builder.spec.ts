@@ -118,7 +118,7 @@ describe('WorkflowDefinitionAdapter', () => {
             );
 
             const definition = WorkflowDefinitionAdapter.serialize('wf-1', 'Test', state);
-            const conditionTask = definition.tasks.find(t => t.pluginId === 'core/condition')!;
+            const conditionTask = definition.tasks.find((t: any) => t.pluginId === 'core/condition')!;
 
             expect(conditionTask.routes.conditional).toBeDefined();
             expect(conditionTask.routes.conditional!['true']).toBe('n2');

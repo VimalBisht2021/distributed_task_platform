@@ -31,7 +31,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
         return NextResponse.json({
             id,
             jobId: id, // for compatibility with older UI
-            status: executionRecord ? executionRecord.state.status : basicInfo.status,
+            status: progress === 100 ? (history.some(e => e.type === 'WorkflowFailed') ? 'FAILED' : 'COMPLETED') : basicInfo.status,
             progress,
             createdAt: basicInfo.startedAt,
             retryCount: 0,

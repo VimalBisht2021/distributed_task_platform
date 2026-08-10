@@ -20,7 +20,8 @@
     ],
     "paths": {
       "@/*": ["./src/*"],
-      "@shared/*": ["../../shared/*"]
+      "@shared/*": ["../../shared/*"],
+      "@local/builder": ["../../../workflow-orchestration-engine/packages/builder"]
     }
   },
   "include": [
