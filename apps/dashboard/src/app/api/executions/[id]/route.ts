@@ -31,7 +31,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
         return NextResponse.json({
             id,
             jobId: id, // for compatibility with older UI
-            status: executionRecord ? executionRecord.status : basicInfo.status,
+            status: executionRecord ? executionRecord.state.status : basicInfo.status,
             progress,
             createdAt: basicInfo.startedAt,
             retryCount: 0,
