@@ -134,7 +134,7 @@ export async function POST(request: Request) {
 
         const startEvent = {
             executionId,
-            type: 'WORKFLOW_STARTED',
+            type: 'ExecutionStarted',
             timestamp: new Date(),
             schemaVersion: '1.0',
             payloadVersion: '1.0',

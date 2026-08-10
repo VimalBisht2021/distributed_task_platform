@@ -18,15 +18,15 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
         const history = await journal.getEvents(id);
 
         let progress = 0;
-        let completed = history.filter(e => e.type === 'TASK_COMPLETED').length;
-        let total = history.filter(e => e.type === 'TASK_SCHEDULED').length;
+        let completed = history.filter(e => e.type === 'TaskCompleted').length;
+        let total = history.filter(e => e.type === 'TaskScheduled').length;
         if (total > 0) {
             progress = Math.floor((completed / total) * 100);
         }
         
         // If workflow is done
-        if (history.some(e => e.type === 'WORKFLOW_COMPLETED')) progress = 100;
-        if (history.some(e => e.type === 'WORKFLOW_FAILED')) progress = 100;
+        if (history.some(e => e.type === 'WorkflowCompleted')) progress = 100;
+        if (history.some(e => e.type === 'WorkflowFailed')) progress = 100;
 
         return NextResponse.json({
             id,

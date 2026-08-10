@@ -80,7 +80,7 @@ export class WorkflowDefinitionAdapter {
         const savedPositions = definition.metadata?.layout?.nodePositions || {};
 
         // 1. Reconstruct CanvasNodes from TaskDefinitions
-        const nodes: CanvasNode[] = definition.tasks.map(task => ({
+        const nodes: CanvasNode[] = definition.tasks.map((task: TaskDefinition) => ({
             id: task.id,
             pluginId: task.pluginId,
             position: savedPositions[task.id] || { x: 0, y: 0 },
@@ -110,7 +110,7 @@ export class WorkflowDefinitionAdapter {
                     edges.push({
                         id: `edge-import-${edgeCounter++}`,
                         source: task.id,
-                        target: targetId,
+                        target: targetId as string,
                         sourceHandle: outcome,
                         label: outcome,
                     });
