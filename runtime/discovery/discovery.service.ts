@@ -6,16 +6,19 @@ export class DiscoveryService {
 
     listHandlers(category?: string): HandlerDefinition[] {
         // Return only stable or beta handlers, potentially hide internal/deprecated ones in the future
-        const handlers = this.registry.list(category);
+        const handlers = this.registry.list(category ? { category } : undefined);
         return handlers;
     }
 
     getHandler(id: string, version: string): HandlerDefinition | undefined {
-        return this.registry.resolveVersion(id, version)?.definition;
+        return this.registry.find(`${id}@${version}`);
     }
 
     getLatestHandler(id: string): HandlerDefinition | undefined {
-        return this.registry.resolve(id)?.definition;
+        const defs = this.registry.list().filter(d => d.id === id);
+        if (defs.length === 0) return undefined;
+        defs.sort((a, b) => b.version.localeCompare(a.version));
+        return defs[0];
     }
 
     listCategories(): string[] {

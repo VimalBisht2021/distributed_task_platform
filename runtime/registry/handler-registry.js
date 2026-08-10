@@ -1,22 +1,18 @@
-import { HandlerDefinition } from '../../../execution-contract/schemas/handler-definition';
-import { HandlerLifecycle } from '../context/handler-context';
-
-export class HandlerRegistry {
-    private static instance: HandlerRegistry;
-    
-    private definitions: Map<string, HandlerDefinition> = new Map();
-    private implementations: Map<string, HandlerLifecycle> = new Map();
-
-    private constructor() {}
-
-    public static getInstance(): HandlerRegistry {
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.HandlerRegistry = void 0;
+class HandlerRegistry {
+    constructor() {
+        this.definitions = new Map();
+        this.implementations = new Map();
+    }
+    static getInstance() {
         if (!HandlerRegistry.instance) {
             HandlerRegistry.instance = new HandlerRegistry();
         }
         return HandlerRegistry.instance;
     }
-
-    public register(definition: HandlerDefinition, implementation: HandlerLifecycle): void {
+    register(definition, implementation) {
         const identifier = `${definition.id}@${definition.version}`;
         if (this.definitions.has(identifier)) {
             throw new Error(`Handler version ${identifier} is already registered. Versions are immutable.`);
@@ -24,24 +20,21 @@ export class HandlerRegistry {
         this.definitions.set(identifier, definition);
         this.implementations.set(identifier, implementation);
     }
-
-    public find(identifier: string): HandlerDefinition | undefined {
+    find(identifier) {
         return this.definitions.get(identifier);
     }
-
-    public resolve(identifier: string): HandlerLifecycle | undefined {
+    resolve(identifier) {
         return this.implementations.get(identifier);
     }
-    
-    public resolveLatest(id: string): HandlerLifecycle | undefined {
+    resolveLatest(id) {
         // Mock simple resolution for latest by finding highest version string
         const defs = this.list().filter(d => d.id === id);
-        if (defs.length === 0) return undefined;
+        if (defs.length === 0)
+            return undefined;
         defs.sort((a, b) => b.version.localeCompare(a.version));
         return this.resolve(`${id}@${defs[0].version}`);
     }
-
-    public list(filters?: { category?: string, supportsRetry?: boolean }): HandlerDefinition[] {
+    list(filters) {
         let all = Array.from(this.definitions.values());
         if (filters?.category) {
             all = all.filter(d => d.category === filters.category);
@@ -51,8 +44,8 @@ export class HandlerRegistry {
         }
         return all;
     }
-    
-    public categories(): string[] {
+    categories() {
         return ['trigger', 'core', 'integration', 'utility', 'script', 'internal', 'experimental'];
     }
 }
+exports.HandlerRegistry = HandlerRegistry;

@@ -24,18 +24,54 @@ export async function processJob(jobId: string, jobType: string, payload?: any) 
   // Registry pattern based on jobType
   let resultPayload = null;
   switch (jobType) {
-    case 'HTTP':
-      resultPayload = { statusCode: 200, body: 'HTTP request successful' };
+    case 'HTTP': {
+      const targetUrl = payload?.url;
+      if (!targetUrl || typeof targetUrl !== 'string') {
+        throw new Error('HTTP job requires a valid URL in payload');
+      }
+      const urlObj = new URL(targetUrl);
+      if (urlObj.protocol !== 'http:' && urlObj.protocol !== 'https:') {
+        throw new Error('SSRF Protection: Only HTTP/HTTPS protocols are allowed');
+      }
+      if (urlObj.hostname === 'localhost' || urlObj.hostname === '127.0.0.1' || urlObj.hostname === '::1') {
+        throw new Error('SSRF Protection: Localhost is not allowed');
+      }
+
+      try {
+        const method = payload?.method || 'GET';
+        const headers = payload?.headers || {};
+        const body = payload?.body ? JSON.stringify(payload.body) : undefined;
+        
+        const response = await fetch(targetUrl, { method, headers, body });
+        const responseText = await response.text();
+        
+        let responseJson;
+        try {
+          responseJson = JSON.parse(responseText);
+        } catch {
+          responseJson = responseText;
+        }
+
+        resultPayload = { 
+          statusCode: response.status, 
+          body: responseJson 
+        };
+      } catch (err: any) {
+        throw new Error(`HTTP request failed: ${err.message}`);
+      }
       break;
+    }
     case 'EMAIL':
       resultPayload = { sentTo: payload?.to || 'default@example.com', success: true };
       break;
     case 'AI':
-      resultPayload = { text: 'Mocked AI completion', tokensUsed: 42 };
+      resultPayload = { text: '[STUB] Mocked AI completion', tokensUsed: 42 };
       break;
     case 'PYTHON':
-      resultPayload = { exitCode: 0, stdout: 'Script completed successfully' };
+      resultPayload = { exitCode: 0, stdout: '[STUB] Script completed successfully' };
       break;
+    case 'SCRIPT':
+      throw new Error('SCRIPT execution is not sandboxed yet. Failing closed for security.');
     default:
       resultPayload = { message: `Job ${jobId} completed successfully` };
       break;

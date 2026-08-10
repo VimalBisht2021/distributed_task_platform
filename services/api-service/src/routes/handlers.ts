@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { DiscoveryService } from '../../../../runtime/discovery/discovery.service';
+import { HandlerRegistry } from '../../../../runtime/registry/handler-registry';
 
 // Assuming DiscoveryService is instantiated and injected
 declare const discoveryService: DiscoveryService;
@@ -35,7 +36,7 @@ handlersRouter.get('/:id/:version', (req: Request, res: Response) => {
     try {
         const identifier = `${req.params.id}@${req.params.version}`;
         const registry = HandlerRegistry.getInstance();
-        const definition = registry.getDefinition(identifier);
+        const definition = registry.find(identifier);
         
         if (!definition) {
             return res.status(404).json({ error: `Handler ${identifier} not found` });

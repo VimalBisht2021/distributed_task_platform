@@ -43,7 +43,9 @@ export class JobController {
     try {
       const userId = req.user?.userId as string;
       const role = req.user?.role as string;
-      const jobs = await jobService.getUserJobs(userId, role);
+      const limit = parseInt(req.query.limit as string) || 50;
+      const offset = parseInt(req.query.offset as string) || 0;
+      const jobs = await jobService.getUserJobs(userId, role, limit, offset);
 
       return res.status(200).json(jobs);
     } catch (error: any) {

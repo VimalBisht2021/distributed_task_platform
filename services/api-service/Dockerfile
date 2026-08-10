@@ -1,9 +1,9 @@
 FROM node:20-alpine
-WORKDIR /app
+WORKDIR /app/distributed-task-platform
 
 # Install dependencies
 COPY services/api-service/package*.json ./services/api-service/
-WORKDIR /app/services/api-service
+WORKDIR /app/distributed-task-platform/services/api-service
 RUN npm ci
 
 # Copy Prisma schema and generate client
@@ -11,12 +11,16 @@ COPY services/api-service/prisma ./prisma
 RUN npx prisma generate
 
 # Copy source code and shared code
-WORKDIR /app
+WORKDIR /app/distributed-task-platform
 COPY shared ./shared
+COPY runtime ./runtime
 COPY services/api-service ./services/api-service
 
+# Copy execution contract to sibling directory
+COPY --from=execution_contract_pkg . /app/execution-contract
+
 # Build TypeScript
-WORKDIR /app/services/api-service
+WORKDIR /app/distributed-task-platform/services/api-service
 RUN npm run build
 
 EXPOSE 3000

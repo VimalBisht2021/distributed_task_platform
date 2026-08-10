@@ -6,8 +6,13 @@ export class WebhookClient {
     
     const bodyStr = JSON.stringify(payload);
     
+    const secret = process.env.WEBHOOK_SECRET;
+    if (!secret) {
+      throw new Error("WEBHOOK_SECRET is not configured");
+    }
+
     const signature = crypto
-      .createHmac('sha256', secret || process.env.WEBHOOK_SECRET || 'secret')
+      .createHmac('sha256', secret)
       .update(bodyStr)
       .digest('hex');
     

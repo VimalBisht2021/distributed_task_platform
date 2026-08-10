@@ -7,50 +7,80 @@ export class JobService {
   private jobRepository = new JobRepository();
   private eventService = new EventService();
 
- async createJob(userId: string, dto: CreateJobDto) {
-  const job = await this.jobRepository.create({
-    userId,
-    jobType: dto.jobType,
-    payload: dto.payload,
-    priority: dto.priority,
-  });
+  async createJob(userId: string, dto: CreateJobDto) {
+    if (dto.idempotencyKey) {
+      const existing = await this.jobRepository.findByIdempotencyKey(dto.idempotencyKey);
+      if (existing) {
+        return {
+          jobId: existing.id,
+          status: existing.status,
+          priority: existing.priority,
+        };
+      }
+    }
 
-  await this.eventService.createEvent(
-    job.id,
-    "JOB_CREATED"
-  );
-
-  try {
-    await enqueueJob(job.id, dto.priority || "MEDIUM");
+    let job;
+    try {
+      job = await this.jobRepository.create({
+        userId,
+        jobType: dto.jobType,
+        payload: dto.payload,
+        priority: dto.priority,
+        idempotencyKey: dto.idempotencyKey,
+        callback: dto.callback,
+      });
+    } catch (error: any) {
+      // Prisma unique constraint violation code is P2002
+      if (error.code === 'P2002' && dto.idempotencyKey) {
+        const existing = await this.jobRepository.findByIdempotencyKey(dto.idempotencyKey);
+        if (existing) {
+          return {
+            jobId: existing.id,
+            status: existing.status,
+            priority: existing.priority,
+          };
+        }
+      }
+      throw error;
+    }
 
     await this.eventService.createEvent(
       job.id,
-      "JOB_QUEUED"
+      "JOB_CREATED"
     );
 
-    await this.jobRepository.updateStatus(
-      job.id,
-      "QUEUED"
-    );
+    try {
+      await enqueueJob(job.id, dto.priority || "MEDIUM");
 
-    return {
-      jobId: job.id,
-      status: "QUEUED",
-      priority: job.priority,
-    };
-  } catch (error) {
-    await this.jobRepository.updateStatus(
-      job.id,
-      "PENDING"
-    );
+      await this.eventService.createEvent(
+        job.id,
+        "JOB_QUEUED"
+      );
 
-    return {
-      jobId: job.id,
-      status: "PENDING",
-      priority: job.priority,
-    };
+      await this.jobRepository.updateStatus(
+        job.id,
+        "QUEUED"
+      );
+
+      return {
+        jobId: job.id,
+        status: "QUEUED",
+        priority: job.priority,
+      };
+    } catch (error) {
+      await this.jobRepository.updateStatus(
+        job.id,
+        "PENDING"
+      );
+
+      return {
+        jobId: job.id,
+        status: "PENDING",
+        priority: job.priority,
+      };
+    }
   }
-}
+
   async getJob(jobId: string, userId: string, role?: string): Promise<JobDto> {
     const job = await this.jobRepository.findById(jobId);
 
@@ -58,7 +88,7 @@ export class JobService {
       throw new Error("Job not found");
     }
 
-    if (role !== "ADMIN" && job.userId !== userId) {
+    if (role !== "ADMIN" && role !== "DISPATCHER" && job.userId !== userId) {
       throw new Error("Forbidden");
     }
 
@@ -84,8 +114,8 @@ export class JobService {
     };
   }
 
-  async getUserJobs(userId: string, role?: string): Promise<JobDto[]> {
-    const jobs = await this.jobRepository.findByUserId(userId, role);
+  async getUserJobs(userId: string, role?: string, limit: number = 50, offset: number = 0): Promise<JobDto[]> {
+    const jobs = await this.jobRepository.findByUserId(userId, role, limit, offset);
 
     return jobs.map((job) => ({
       jobId: job.id,

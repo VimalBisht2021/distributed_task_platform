@@ -59,6 +59,9 @@ model Job {
 
   version Int @default(1)
 
+  idempotencyKey String? @unique
+  callback Json?
+
   failureReason String?
 
   createdAt DateTime @default(now())

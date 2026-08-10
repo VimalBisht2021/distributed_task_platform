@@ -28,9 +28,9 @@ export class WebhookDispatcherService {
         return;
       }
 
-      const callbackObj = (job as any).callback;
-      const callbackUrl = callbackObj?.url || (job.payload as any)?.webhookUrl;
-      const callbackSecret = callbackObj?.apiKey;
+      const callbackObj = job.callback ? (job.callback as any) : null;
+      const callbackUrl = callbackObj?.url;
+      // Note: We don't use callbackObj?.apiKey anymore as per DTP-2 gap 1. We rely on shared WEBHOOK_SECRET.
 
       if (!callbackUrl) {
         return; // Not a WOE task or no webhook requested
@@ -46,10 +46,27 @@ export class WebhookDispatcherService {
 
       const webhookPayload = ExecutionEventMapper.toWebhookPayload(event, job, result);
 
-      try {
-        await WebhookClient.send(callbackUrl, webhookPayload, callbackSecret);
-      } catch (err) {
-        // Retry logic could go here
+      const maxRetries = 3;
+      let attempt = 0;
+      let success = false;
+
+      while (attempt <= maxRetries && !success) {
+        try {
+          await WebhookClient.send(callbackUrl, webhookPayload);
+          success = true;
+        } catch (err) {
+          attempt++;
+          if (attempt > maxRetries) {
+            console.error(`[WebhookDispatcher] Failed to send webhook after ${maxRetries} retries for job ${job.id}`);
+            // This is where DLQ or reconciliation record would go
+            break;
+          }
+          const baseDelay = 1000 * Math.pow(2, attempt - 1);
+          const jitter = Math.random() * 500;
+          const delay = baseDelay + jitter;
+          console.log(`[WebhookDispatcher] Webhook failed, retrying in ${Math.round(delay)}ms... (Attempt ${attempt}/${maxRetries})`);
+          await new Promise(res => setTimeout(res, delay));
+        }
       }
 
     } catch (error) {

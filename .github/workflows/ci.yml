@@ -9,6 +9,37 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: dtp
+          POSTGRES_PASSWORD: dtppassword
+          POSTGRES_DB: task_platform
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7
+        ports:
+          - 6380:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: "postgresql://dtp:dtppassword@localhost:5433/task_platform?schema=public"
+      REDIS_URL: "redis://localhost:6380"
+      WEBHOOK_SECRET: "ci-secret"
+
     steps:
     - uses: actions/checkout@v4
     
@@ -27,6 +58,16 @@ jobs:
         npm ci --prefix services/worker-service
         npm ci --prefix services/scheduler-service
         npm ci --prefix apps/dashboard
+
+    - name: Run database migrations
+      run: npx prisma migrate deploy
+      working-directory: ./services/api-service
+
+    - name: Build packages
+      run: |
+        npm run build --prefix services/api-service
+        npm run build --prefix services/worker-service
+        npm run build --prefix services/scheduler-service
 
     - name: Run unit & integration tests
       run: |

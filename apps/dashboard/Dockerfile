@@ -12,6 +12,7 @@ WORKDIR /app
 COPY apps/dashboard/package*.json ./apps/dashboard/
 
 WORKDIR /app/apps/dashboard
+COPY --from=builder_pkg . /workflow-orchestration-engine/packages/builder
 RUN npm ci
 
 WORKDIR /app

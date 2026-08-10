@@ -34,6 +34,8 @@ services:
   api-service:
     build:
       context: .
+      additional_contexts:
+        execution_contract_pkg: ../execution-contract
       dockerfile: services/api-service/Dockerfile
     container_name: task-platform-api
     restart: unless-stopped
@@ -93,6 +95,8 @@ services:
   dashboard:
     build:
       context: .
+      additional_contexts:
+        builder_pkg: ../workflow-orchestration-engine/packages/builder
       dockerfile: apps/dashboard/Dockerfile
       args:
         NEXT_PUBLIC_API_URL: http://localhost:4001

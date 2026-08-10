@@ -7,7 +7,7 @@ const authenticateApiKey = (req: Request, res: Response, next: NextFunction) => 
     req.user = {
       userId: 'system',
       email: 'system@dtp.local',
-      role: 'ADMIN',
+      role: 'DISPATCHER',
     };
     return next();
   }
