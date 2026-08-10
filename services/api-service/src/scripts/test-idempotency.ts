@@ -1,7 +1,7 @@
 import { JobService } from '../services/job.service';
 import { prisma } from '../config/prisma';
 import { EventService } from '../services/event.service';
-import { v4 as uuidv4 } from 'uuid';
+import crypto from 'crypto';
 import { redisClient, redisBlockingClient } from '../redis/client';
 
 async function main() {
@@ -11,7 +11,7 @@ async function main() {
   const jobService = new JobService();
   const eventService = new EventService();
   
-  const idempotencyKey = uuidv4();
+  const idempotencyKey = crypto.randomUUID();
   let user = await prisma.user.findUnique({ where: { email: 'test@example.com' } });
   if (!user) {
     user = await prisma.user.create({
@@ -28,7 +28,7 @@ async function main() {
     jobType: "HTTP",
     payload: { url: "http://example.com" },
     idempotencyKey,
-    priority: "HIGH"
+    priority: "HIGH" as const
   };
 
   console.log(`Using Idempotency Key: ${idempotencyKey}`);
