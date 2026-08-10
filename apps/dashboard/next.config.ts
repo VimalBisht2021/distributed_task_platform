@@ -4,6 +4,7 @@ const nextConfig: NextConfig = {
   experimental: {
     externalDir: true,
   },
+  transpilePackages: ["@local/builder"],
   output: "standalone",
 };
 
