@@ -114,6 +114,42 @@ export class JobService {
     };
   }
 
+  async getJobByIdempotencyKey(idempotencyKey: string, userId: string, role?: string) {
+    const job = await this.jobRepository.findByIdempotencyKey(idempotencyKey);
+
+    if (!job) {
+      throw new Error("Job not found");
+    }
+
+    if (role !== "ADMIN" && role !== "DISPATCHER" && job.userId !== userId) {
+      throw new Error("Forbidden");
+    }
+
+    const events = await this.eventService.findByJobId(job.id);
+    const result = await this.jobRepository.getResult(job.id);
+
+    return {
+      jobId: job.id,
+      status: job.status,
+      progress: job.progress,
+      jobType: job.jobType,
+      workerId: job.workerId || undefined,
+      retryCount: job.retryCount,
+      createdAt: job.createdAt,
+      updatedAt: job.updatedAt,
+      result: result?.payload || undefined,
+      error: job.failureReason || undefined,
+      events: events.map((e) => ({
+        id: e.id,
+        jobId: e.jobId,
+        eventType: e.eventType,
+        workerId: e.workerId || undefined,
+        details: e.details,
+        createdAt: e.createdAt,
+      })),
+    };
+  }
+
   async getUserJobs(userId: string, role?: string, limit: number = 50, offset: number = 0): Promise<JobDto[]> {
     const jobs = await this.jobRepository.findByUserId(userId, role, limit, offset);
 

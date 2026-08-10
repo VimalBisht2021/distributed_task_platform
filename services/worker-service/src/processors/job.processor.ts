@@ -25,7 +25,7 @@ export async function processJob(jobId: string, jobType: string, payload?: any) 
   let resultPayload = null;
   switch (jobType) {
     case 'HTTP': {
-      const targetUrl = payload?.url;
+      const targetUrl = payload?.url ?? payload?.input?.url;
       if (!targetUrl || typeof targetUrl !== 'string') {
         throw new Error('HTTP job requires a valid URL in payload');
       }
@@ -38,9 +38,10 @@ export async function processJob(jobId: string, jobType: string, payload?: any) 
       }
 
       try {
-        const method = payload?.method || 'GET';
-        const headers = payload?.headers || {};
-        const body = payload?.body ? JSON.stringify(payload.body) : undefined;
+        const method = payload?.method ?? payload?.input?.method ?? 'GET';
+        const headers = payload?.headers ?? payload?.input?.headers ?? {};
+        const bodyData = payload?.body ?? payload?.input?.body;
+        const body = bodyData ? (typeof bodyData === 'string' ? bodyData : JSON.stringify(bodyData)) : undefined;
         
         const response = await fetch(targetUrl, { method, headers, body });
         const responseText = await response.text();

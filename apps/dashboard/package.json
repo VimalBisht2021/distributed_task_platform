@@ -9,7 +9,7 @@
     "lint": "eslint"
   },
   "dependencies": {
-    "@local/builder": "file:..\\..\\..\\workflow-orchestration-engine\\packages\\builder",
+    "@local/builder": "file:../../../workflow-orchestration-engine/packages/builder",
     "@tanstack/react-table": "^8.21.3",
     "@xyflow/react": "^12.11.2",
     "clsx": "^2.1.1",
@@ -21,6 +21,7 @@
     "recharts": "^3.9.2",
     "swr": "^2.4.2",
     "tailwind-merge": "^3.6.0",
+    "uuid": "^9.0.1",
     "zustand": "^5.0.14"
   },
   "devDependencies": {
@@ -28,6 +29,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/uuid": "^9.0.8",
     "eslint": "^9",
     "eslint-config-next": "16.2.10",
     "tailwindcss": "^4",

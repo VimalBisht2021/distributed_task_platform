@@ -39,6 +39,23 @@ export class JobController {
       });
     }
   }
+
+  async getByIdempotencyKey(req: Request, res: Response) {
+    try {
+      const userId = req.user?.userId as string;
+      const role = req.user?.role as string;
+      const result = await jobService.getJobByIdempotencyKey(
+        req.params.idempotencyKey as string,
+        userId,
+        role,
+      );
+      return res.status(200).json(result);
+    } catch (error: any) {
+      return res.status(404).json({
+        message: error.message,
+      });
+    }
+  }
   async getAll(req: Request, res: Response) {
     try {
       const userId = req.user?.userId as string;

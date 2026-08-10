@@ -17,6 +17,7 @@ router.post(
 );
 router.post("/:jobId/retry", authMiddleware, controller.retry.bind(controller));
 
+router.get("/by-idempotency-key/:idempotencyKey", authMiddleware, apiRateLimiter, controller.getByIdempotencyKey.bind(controller));
 router.get("/:jobId", authMiddleware, apiRateLimiter, controller.getById.bind(controller));
 router.get("/:jobId/result", authMiddleware, apiRateLimiter, controller.getResult.bind(controller));
 
