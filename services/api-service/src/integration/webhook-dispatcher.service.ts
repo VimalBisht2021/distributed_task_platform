@@ -28,9 +28,7 @@ export class WebhookDispatcherService {
         return;
       }
 
-      const callbackObj = job.callback ? (job.callback as any) : null;
-      const callbackUrl = callbackObj?.url;
-      // Note: We don't use callbackObj?.apiKey anymore as per DTP-2 gap 1. We rely on shared WEBHOOK_SECRET.
+      const callbackUrl = job.callback ? (job.callback as any).url : null;
 
       if (!callbackUrl) {
         return; // Not a WOE task or no webhook requested

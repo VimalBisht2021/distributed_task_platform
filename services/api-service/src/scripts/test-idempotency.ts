@@ -2,14 +2,27 @@ import { JobService } from '../services/job.service';
 import { prisma } from '../config/prisma';
 import { EventService } from '../services/event.service';
 import { v4 as uuidv4 } from 'uuid';
+import { redisClient, redisBlockingClient } from '../redis/client';
 
 async function main() {
+  await redisClient.connect();
+  await redisBlockingClient.connect();
   console.log("Starting Idempotency Test...");
   const jobService = new JobService();
   const eventService = new EventService();
   
   const idempotencyKey = uuidv4();
-  const userId = "test-user";
+  let user = await prisma.user.findUnique({ where: { email: 'test@example.com' } });
+  if (!user) {
+    user = await prisma.user.create({
+      data: {
+        email: 'test@example.com',
+        passwordHash: 'dummy',
+        role: 'USER'
+      }
+    });
+  }
+  const userId = user.id;
   
   const dto = {
     jobType: "HTTP",
