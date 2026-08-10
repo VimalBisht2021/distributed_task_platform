@@ -15,7 +15,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 
     try {
         const executionRecord = await stateRepo.getExecution(id);
-        const history = await journal.getHistory(id);
+        const history = await journal.getEvents(id);
 
         let progress = 0;
         let completed = history.filter(e => e.type === 'TASK_COMPLETED').length;
