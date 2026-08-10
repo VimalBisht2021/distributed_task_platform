@@ -14,6 +14,9 @@ COPY apps/dashboard/package*.json ./apps/dashboard/
 WORKDIR /app/apps/dashboard
 COPY --from=builder_pkg . /workflow-orchestration-engine/packages/builder
 RUN npm ci
+# Replace symlink with real directory to prevent Turbopack external root errors
+RUN rm -rf node_modules/@local/builder && cp -r /workflow-orchestration-engine/packages/builder node_modules/@local/builder
+
 
 WORKDIR /app
 COPY . .
@@ -25,7 +28,8 @@ ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 ENV NEXT_PUBLIC_LAB_SERVICE_URL=$NEXT_PUBLIC_LAB_SERVICE_URL
 
 # Note: Using npx next build explicitly for the dashboard workspace
-RUN cd apps/dashboard && rm -f ../../pnpm-lock.yaml && rm -f ../../package-lock.json && npx next build
+RUN ln -s /app/apps/dashboard/node_modules /app/node_modules
+RUN cd apps/dashboard && npx next build
 
 # Production image, copy all the files and run next
 FROM base AS runner
