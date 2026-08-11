@@ -8,7 +8,7 @@ RUN npm ci
 
 # Copy Prisma schema and generate client
 COPY services/worker-service/prisma ./prisma
-RUN npx prisma generate
+RUN npx prisma@6 generate
 
 # Copy source code and shared code
 WORKDIR /app

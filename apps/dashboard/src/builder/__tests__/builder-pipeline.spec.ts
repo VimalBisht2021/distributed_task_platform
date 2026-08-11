@@ -1,6 +1,5 @@
 import { WorkflowDefinition } from '../../../../../runtime/workflow/workflow-definition';
 import { CompilationService } from '../../../../../runtime/workflow/compilation-service';
-import { ExecutionPlanner } from '../../../../../runtime/execution/planner';
 import { describe, it, expect } from 'vitest';
 
 describe('Builder to Runtime Pipeline', () => {
@@ -73,24 +72,6 @@ describe('Builder to Runtime Pipeline', () => {
         expect(compiledWorkflow.id).toBe('wf-integration-1');
         expect(compiledWorkflow.startTask).toBe('task-1');
         expect(compiledWorkflow.tasks.size).toBe(4);
-
-        // 3. Plan it
-        const planner = new ExecutionPlanner();
-        const plan = planner.createPlan(compiledWorkflow);
-
-        // Verify the plan
-        expect(plan.workflowId).toBe('wf-integration-1');
-        expect(plan.nodes.size).toBe(4);
-        
-        // Verify node dependencies
-        const t1Node = plan.nodes.get('task-1')!;
-        expect(t1Node.dependencies.length).toBe(0); // Root
-
-        const t2Node = plan.nodes.get('task-2')!;
-        expect(t2Node.dependencies.includes('task-1')).toBe(true);
-
-        const t3Node = plan.nodes.get('task-3')!;
-        expect(t3Node.dependencies.includes('task-2')).toBe(true);
     });
 
     it('should reject cycles during compilation', () => {

@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest';
 import { ExecutionEventMapper } from './execution-event.mapper';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -6,7 +6,16 @@ import { SystemEventMessage } from '../../../../shared/types';
 import { Job, Result } from '@prisma/client';
 
 describe('ExecutionEventMapper Contract Drift Test', () => {
-  it('should match the checked-in fixture', () => {
+  beforeAll(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(1714521600000));
+  });
+
+  afterAll(() => {
+    vi.useRealTimers();
+  });
+
+  it('should match the checked-in fixture exactly', () => {
     const fixturePath = path.join(__dirname, '../../scripts/webhook-event-fixture.json');
     const fixture = JSON.parse(fs.readFileSync(fixturePath, 'utf-8'));
 
@@ -37,12 +46,6 @@ describe('ExecutionEventMapper Contract Drift Test', () => {
     // Drop undefined fields and convert dates to strings via JSON round-trip
     payload = JSON.parse(JSON.stringify(payload));
 
-    // Exclude non-deterministic fields from the test payload
-    const { eventId, occurredAt, ...testPayload } = payload;
-    
-    // Exclude non-deterministic fields from the fixture payload
-    const { eventId: fEventId, occurredAt: fOccurredAt, ...fixturePayload } = fixture;
-
-    expect(testPayload).toEqual(fixturePayload);
+    expect(payload).toEqual(fixture);
   });
 });

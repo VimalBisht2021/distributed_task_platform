@@ -1,5 +1,9 @@
 import { ProgressService } from "../services/progress.service";
 import { EventService } from "../services/event.service";
+import * as dns from "dns";
+import { promisify } from "util";
+
+const lookup = promisify(dns.lookup);
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -33,8 +37,15 @@ export async function processJob(jobId: string, jobType: string, payload?: any) 
       if (urlObj.protocol !== 'http:' && urlObj.protocol !== 'https:') {
         throw new Error('SSRF Protection: Only HTTP/HTTPS protocols are allowed');
       }
-      if (urlObj.hostname === 'localhost' || urlObj.hostname === '127.0.0.1' || urlObj.hostname === '::1') {
+      if (urlObj.hostname === 'localhost' || urlObj.hostname === '127.0.0.1' || urlObj.hostname === '::1' || urlObj.hostname === '0.0.0.0') {
         throw new Error('SSRF Protection: Localhost is not allowed');
+      }
+      
+      const { address } = await lookup(urlObj.hostname);
+      if (address === '127.0.0.1' || address === '::1' || address === '0.0.0.0' || 
+          address.startsWith('10.') || address.startsWith('192.168.') || address.startsWith('169.254.') || 
+          /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(address)) {
+        throw new Error('SSRF Protection: Private/local IPs are not allowed');
       }
 
       try {
@@ -63,7 +74,7 @@ export async function processJob(jobId: string, jobType: string, payload?: any) 
       break;
     }
     case 'EMAIL':
-      resultPayload = { sentTo: payload?.to || 'default@example.com', success: true };
+      resultPayload = { sentTo: payload?.to || 'default@example.com', success: true, note: '[STUB] Mocked EMAIL execution' };
       break;
     case 'AI':
       resultPayload = { text: '[STUB] Mocked AI completion', tokensUsed: 42 };
@@ -74,7 +85,7 @@ export async function processJob(jobId: string, jobType: string, payload?: any) 
     case 'SCRIPT':
       throw new Error('SCRIPT execution is not sandboxed yet. Failing closed for security.');
     default:
-      resultPayload = { message: `Job ${jobId} completed successfully` };
+      resultPayload = { message: `[STUB] Job ${jobId} completed successfully (mock default)` };
       break;
   }
 

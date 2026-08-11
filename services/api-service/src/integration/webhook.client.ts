@@ -15,6 +15,9 @@ export class WebhookClient {
       .createHmac('sha256', resolvedSecret)
       .update(bodyStr)
       .digest('hex');
+    console.log(`[WebhookClient] Secret length: ${resolvedSecret.length}, Secret: ${JSON.stringify(resolvedSecret)}`);
+    console.log(`[WebhookClient] Expected body string: ${bodyStr}`);
+    console.log(`[WebhookClient] Generated signature: ${signature}`);
     
     const response = await fetch(url, {
       method: 'POST',
