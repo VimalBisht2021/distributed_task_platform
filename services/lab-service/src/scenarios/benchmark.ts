@@ -1,44 +1,52 @@
-import { getToken, submitJob, getJobStatus, sleep, runDockerCommand } from './utils';
+import { getToken, submitJob, getJobStatus, sleep } from './utils';
 
 export default async function runBenchmarkScenario(log: (msg: string) => void) {
   log("=== Benchmark Mode ===");
-  log("Purpose: How does performance scale?");
-
-  const workerCounts = [1, 2, 4, 8];
-  const jobCount = 50;
+  log("Purpose: How fast can the system process jobs?");
 
   const token = await getToken();
 
-  log(`Running Benchmark: ${jobCount} jobs per worker count`);
-  log("Workers | Jobs | Time (s) | Jobs/sec");
+  const batchSizes = [10, 25, 50];
+
+  log("Batch  | Jobs | Time (s) | Jobs/sec");
   log("---------------------------------------");
 
-  for (const w of workerCounts) {
-    await runDockerCommand(`compose up -d --scale worker-service=${w} --scale scheduler-service=1`);
-    await sleep(5000); // Wait for workers to spin up
-
+  for (const batchSize of batchSizes) {
     const jobIds: string[] = [];
     const startTime = Date.now();
 
-    for (let i = 0; i < jobCount; i++) {
-      const jobId = await submitJob(token, "MEDIUM", "Benchmark", 10);
+    // Submit all jobs in rapid succession
+    for (let i = 0; i < batchSize; i++) {
+      const jobId = await submitJob(token, "MEDIUM", `Bench-${batchSize}-${i}`, 10);
       jobIds.push(jobId);
     }
 
-    const lastJob = jobIds[jobIds.length - 1];
+    const submitTime = ((Date.now() - startTime) / 1000).toFixed(2);
+    log(`Submitted ${batchSize} jobs in ${submitTime}s. Waiting for completion...`);
 
-    while (true) {
-      const status = await getJobStatus(token, lastJob);
-      if (status === 'COMPLETED') break;
-      await sleep(500);
+    // Wait for all jobs to complete
+    const deadline = Date.now() + 120_000; // 2 min timeout
+    let allDone = false;
+
+    while (!allDone && Date.now() < deadline) {
+      allDone = true;
+      for (const jobId of jobIds) {
+        const status = await getJobStatus(token, jobId);
+        if (status !== 'COMPLETED' && status !== 'FAILED') {
+          allDone = false;
+          break;
+        }
+      }
+      if (!allDone) await sleep(500);
     }
 
     const endTime = Date.now();
     const elapsedSec = (endTime - startTime) / 1000;
-    const jobsPerSec = (jobCount / elapsedSec).toFixed(2);
+    const jobsPerSec = (batchSize / elapsedSec).toFixed(2);
 
-    log(`${w.toString().padEnd(7)} | ${jobCount.toString().padEnd(4)} | ${elapsedSec.toFixed(2).padEnd(8)} | ${jobsPerSec}`);
+    log(`${batchSize.toString().padEnd(6)} | ${batchSize.toString().padEnd(4)} | ${elapsedSec.toFixed(2).padEnd(8)} | ${jobsPerSec}`);
   }
 
+  log("");
   log("Benchmark complete!");
 }

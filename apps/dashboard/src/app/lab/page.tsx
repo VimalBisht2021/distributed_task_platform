@@ -16,7 +16,7 @@ interface LabRun {
 
 export default function LabPage() {
   const sseUrl = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}/events/stream`;
-  const labUrl = process.env.NEXT_PUBLIC_LAB_SERVICE_URL || 'http://localhost:3002';
+  const labUrl = process.env.NEXT_PUBLIC_LAB_SERVICE_URL || 'http://localhost:3006';
   
   const { data: events, isConnected } = useSSE<{ type: string, payload: any, timestamp?: string, source?: string, jobId?: string }>(sseUrl);
   const [selectedScenario, setSelectedScenario] = useState<string | null>(null);
