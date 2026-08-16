@@ -1,0 +1,23 @@
+services:
+  dind:
+    image: docker:dind
+    container_name: task-platform-dind
+    privileged: true
+    restart: unless-stopped
+    environment:
+      - DOCKER_TLS_CERTDIR=
+    command: ["--tls=false"]
+
+  lab-service:
+    build:
+      context: .
+      dockerfile: services/lab-service/Dockerfile
+    container_name: task-platform-lab
+    restart: unless-stopped
+    ports:
+      - "3006:3006"
+    environment:
+      - API_URL=http://task-platform-api:3000
+      - REDIS_HOST=task-platform-redis
+    depends_on:
+      - api-service

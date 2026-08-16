@@ -16,8 +16,8 @@
 
 import { WorkflowDefinitionAdapter } from '../adapters/workflow-definition-adapter';
 import { BuilderState, CanvasNode, CanvasEdge } from '../state/builder-state';
-import { WorkflowDefinition } from '../../../../../runtime/workflow/workflow-definition';
-import { toDTO, fromDTO, CURRENT_SCHEMA_VERSION } from '../../../../../runtime/workflow/workflow-definition-dto';
+import { WorkflowDefinition } from '@runtime/workflow/workflow-definition';
+import { toDTO, fromDTO, CURRENT_SCHEMA_VERSION } from '@runtime/workflow/workflow-definition-dto';
 import { TopologicalLayoutEngine } from '../layout/auto-layout-service';
 import { AddNodeCommand, DeleteNodeCommand, MoveNodeCommand, UpdatePropertyCommand } from '../commands/node-commands';
 import { ConnectEdgeCommand, DisconnectEdgeCommand } from '../commands/edge-commands';

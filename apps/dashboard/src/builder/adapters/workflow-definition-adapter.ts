@@ -6,7 +6,7 @@
  */
 
 import { BuilderState, CanvasNode, CanvasEdge } from '../state/builder-state';
-import { WorkflowDefinition, TaskDefinition } from '../../../../../runtime/workflow/workflow-definition';
+import { WorkflowDefinition, TaskDefinition } from '@runtime/workflow/workflow-definition';
 
 export class WorkflowDefinitionAdapter {
     /**

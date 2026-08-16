@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { WorkflowDefinitionAdapter } from '../adapters/workflow-definition-adapter';
 import { BuilderState, CanvasNode, CanvasEdge } from '../state/builder-state';
-import { CompilationService } from '../../../../../runtime/workflow/compilation-service';
+import { CompilationService } from '@runtime/workflow/compilation-service';
 
 describe('Builder Performance Benchmarks', () => {
     it('should serialize and compile 1000 nodes within reasonable time limits', () => {

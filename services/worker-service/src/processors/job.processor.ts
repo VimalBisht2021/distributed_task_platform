@@ -1,7 +1,8 @@
 import { ProgressService } from "../services/progress.service";
 import { EventService } from "../services/event.service";
 import * as dns from "dns";
-import * as vm from "vm";
+import ivm from "isolated-vm";
+import { Parser } from "expr-eval";
 import { promisify } from "util";
 import * as nodemailer from "nodemailer";
 
@@ -17,6 +18,21 @@ let etherealTransporter: nodemailer.Transporter | null = null;
 
 async function getEmailTransporter(): Promise<nodemailer.Transporter> {
   if (etherealTransporter) return etherealTransporter;
+
+  // Use real SMTP if configured via environment variables
+  if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
+    console.log(`[EMAIL] Using real SMTP server: ${process.env.SMTP_HOST}`);
+    etherealTransporter = nodemailer.createTransport({
+      host: process.env.SMTP_HOST,
+      port: parseInt(process.env.SMTP_PORT || '587'),
+      secure: process.env.SMTP_PORT === '465',
+      auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS,
+      },
+    });
+    return etherealTransporter;
+  }
 
   // Create a test account on Ethereal (free, no signup needed)
   const testAccount = await nodemailer.createTestAccount();
@@ -95,7 +111,6 @@ async function handleCondition(jobId: string, payload: any) {
   await progressService.updateProgress(jobId, 30);
 
   // Build a safe sandbox context from upstream task outputs
-  // The input may contain outputs from previous tasks
   const sandbox: Record<string, any> = {
     input: payload?.input ?? payload ?? {},
     variables: payload?.variables ?? payload?.input?.variables ?? {},
@@ -109,12 +124,10 @@ async function handleCondition(jobId: string, payload: any) {
 
   let result: boolean;
   try {
-    // Evaluate the expression in a sandboxed VM context (no access to require, process, fs, etc.)
-    const vmResult = vm.runInNewContext(expression, sandbox, {
-      timeout: 3000, // 3 second timeout for safety
-      filename: 'condition-expression',
-    });
-    result = Boolean(vmResult);
+    // Safely evaluate the expression using an AST parser (expr-eval)
+    const parser = new Parser();
+    const evalResult = parser.evaluate(expression, sandbox);
+    result = Boolean(evalResult);
   } catch (err: any) {
     throw new Error(`CONDITION expression evaluation failed: ${err.message}. Expression: "${expression}"`);
   }
@@ -129,6 +142,7 @@ async function handleCondition(jobId: string, payload: any) {
 }
 
 async function handleEmail(jobId: string, payload: any) {
+  const from = payload?.from ?? payload?.input?.from ?? '"Workflow Engine" <workflow@engine.dev>';
   const to = payload?.to ?? payload?.input?.to ?? 'test@example.com';
   const subject = payload?.subject ?? payload?.input?.subject ?? 'Workflow Notification';
   const body = payload?.body ?? payload?.input?.body ?? 'This email was sent by the Workflow Orchestration Engine.';
@@ -140,7 +154,7 @@ async function handleEmail(jobId: string, payload: any) {
   await progressService.updateProgress(jobId, 50);
 
   const info = await transporter.sendMail({
-    from: '"Workflow Engine" <workflow@engine.dev>',
+    from,
     to,
     subject,
     text: body,
@@ -177,6 +191,10 @@ async function handleScript(jobId: string, payload: any) {
     throw new Error(`SCRIPT handler only supports JavaScript. Got: "${language}"`);
   }
 
+  if (!ivm) {
+    throw new Error('CRITICAL: isolated-vm is not available in the worker environment. Security sandbox cannot be established.');
+  }
+
   await progressService.updateProgress(jobId, 20);
 
   // Build a sandboxed context with console capture
@@ -185,24 +203,6 @@ async function handleScript(jobId: string, payload: any) {
     input: payload?.input ?? payload ?? {},
     variables: payload?.variables ?? payload?.input?.variables ?? {},
     upstreamOutputs: payload?.upstreamOutputs ?? payload?.input?.upstreamOutputs ?? {},
-    console: {
-      log: (...args: any[]) => logs.push(args.map(String).join(' ')),
-      error: (...args: any[]) => logs.push('[ERROR] ' + args.map(String).join(' ')),
-      warn: (...args: any[]) => logs.push('[WARN] ' + args.map(String).join(' ')),
-    },
-    JSON,
-    Math,
-    Date,
-    Array,
-    Object,
-    String,
-    Number,
-    Boolean,
-    parseInt,
-    parseFloat,
-    isNaN,
-    isFinite,
-    // Explicitly no: require, process, fs, child_process, eval, Function
   };
 
   await progressService.updateProgress(jobId, 50);
@@ -211,14 +211,52 @@ async function handleScript(jobId: string, payload: any) {
   try {
     // Wrap code in an async IIFE so users can use await
     const wrappedCode = `(async () => { ${code} })()`;
-    const script = new vm.Script(wrappedCode, {
-      filename: 'user-script.js',
-    });
 
-    const context = vm.createContext(sandbox);
-    result = await script.runInContext(context, {
-      timeout: 5000, // 5 second timeout
+    // Create a new isolate with a strict 128MB memory limit
+    const isolate = new ivm.Isolate({ memoryLimit: 128 });
+    const ivmContext = await isolate.createContext();
+    const jail = ivmContext.global;
+
+    await jail.set('global', jail.derefInto());
+
+    // Inject console.log
+    const logCallback = new ivm.Reference((...args: any[]) => {
+      logs.push(args.join(' '));
     });
+    const errorCallback = new ivm.Reference((...args: any[]) => {
+      logs.push('[ERROR] ' + args.join(' '));
+    });
+    
+    await ivmContext.evalClosure(`
+      global.console = {
+        log: function(...args) { $0.applyIgnored(undefined, args, { arguments: { copy: true } }); },
+        error: function(...args) { $1.applyIgnored(undefined, args, { arguments: { copy: true } }); },
+        warn: function(...args) { $1.applyIgnored(undefined, args, { arguments: { copy: true } }); }
+      };
+    `, [logCallback, errorCallback], { arguments: { reference: true } });
+
+    // Inject variables
+    await jail.set('input', new ivm.ExternalCopy(sandbox.input).copyInto());
+    await jail.set('variables', new ivm.ExternalCopy(sandbox.variables).copyInto());
+    await jail.set('upstreamOutputs', new ivm.ExternalCopy(sandbox.upstreamOutputs).copyInto());
+
+    // Execute the script safely
+    const script = await isolate.compileScript(wrappedCode, { filename: 'user-script.js' });
+    
+    // Run the script and await its Promise result (since it's an async IIFE)
+    const rawResult = await script.run(ivmContext, { timeout: 5000, promise: true });
+    
+    // Safely copy result back to Node environment (primitive or cloned object)
+    if (typeof rawResult === 'object' && rawResult !== null && typeof rawResult.copy === 'function') {
+      result = await rawResult.copy();
+    } else {
+      result = rawResult;
+    }
+
+    // Cleanup memory
+    script.release();
+    ivmContext.release();
+    isolate.dispose();
   } catch (err: any) {
     throw new Error(`SCRIPT execution failed: ${err.message}`);
   }

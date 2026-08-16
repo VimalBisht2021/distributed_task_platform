@@ -4,7 +4,7 @@ WORKDIR /app/distributed-task-platform
 # Install dependencies
 COPY services/api-service/package*.json ./services/api-service/
 WORKDIR /app/distributed-task-platform/services/api-service
-RUN npm ci
+RUN --mount=type=cache,id=npm-api,target=/root/.npm npm ci
 
 # Copy Prisma schema and generate client
 COPY services/api-service/prisma ./prisma

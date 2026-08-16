@@ -4,12 +4,12 @@ const nextConfig: NextConfig = {
   experimental: {
     externalDir: true,
   },
+  turbopack: {
+    root: "../../",
+  },
   transpilePackages: ["@local/builder"],
   typescript: {
     ignoreBuildErrors: true,
-  },
-  eslint: {
-    ignoreDuringBuilds: true,
   },
   output: "standalone",
 };

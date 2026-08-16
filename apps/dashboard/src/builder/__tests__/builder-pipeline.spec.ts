@@ -1,5 +1,5 @@
-import { WorkflowDefinition } from '../../../../../runtime/workflow/workflow-definition';
-import { CompilationService } from '../../../../../runtime/workflow/compilation-service';
+import { WorkflowDefinition } from '@runtime/workflow/workflow-definition';
+import { CompilationService } from '@runtime/workflow/compilation-service';
 import { describe, it, expect } from 'vitest';
 
 describe('Builder to Runtime Pipeline', () => {

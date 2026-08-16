@@ -9,8 +9,8 @@
  */
 
 import { NextResponse } from 'next/server';
-import { CompilationService } from '../../../../../../runtime/workflow/compilation-service';
-import { fromDTO } from '../../../../../../runtime/workflow/workflow-definition-dto';
+import { CompilationService } from '@runtime/workflow/compilation-service';
+import { fromDTO } from '@runtime/workflow/workflow-definition-dto';
 
 // In-memory compile cache (production would use Redis/persistent store)
 const compileCache = new Map<string, { compiledWorkflowId: string; hash: string }>();

@@ -5,10 +5,11 @@ WORKDIR /app
 COPY services/lab-service/package*.json ./services/lab-service/
 
 WORKDIR /app/services/lab-service
-RUN npm ci
+RUN --mount=type=cache,id=npm-lab,target=/root/.npm npm ci
 
+# Copy only the lab-service source (it has no monorepo-external imports)
 WORKDIR /app
-COPY . .
+COPY services/lab-service ./services/lab-service
 
 # Build lab-service
 WORKDIR /app/services/lab-service

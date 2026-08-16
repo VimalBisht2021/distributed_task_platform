@@ -18,7 +18,9 @@
     "@prisma/client": "^6.19.3",
     "crypto": "^1.0.1",
     "dotenv": "^17.4.2",
+    "expr-eval": "^2.0.2",
     "ioredis": "^5.11.1",
+    "isolated-vm": "^5.0.4",
     "nodemailer": "^9.0.5",
     "prom-client": "^15.1.3"
   },

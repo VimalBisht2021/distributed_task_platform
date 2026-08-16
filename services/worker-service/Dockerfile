@@ -1,10 +1,13 @@
 FROM node:20-alpine
 WORKDIR /app
 
+# Install native build tools required for isolated-vm (node-gyp compilation)
+RUN apk add --no-cache python3 make g++
+
 # Install dependencies
 COPY services/worker-service/package*.json ./services/worker-service/
 WORKDIR /app/services/worker-service
-RUN npm ci
+RUN --mount=type=cache,id=npm-worker,target=/root/.npm npm ci
 
 # Copy Prisma schema and generate client
 COPY services/worker-service/prisma ./prisma

@@ -4,7 +4,7 @@ WORKDIR /app
 # Install dependencies
 COPY services/scheduler-service/package*.json ./services/scheduler-service/
 WORKDIR /app/services/scheduler-service
-RUN npm ci
+RUN --mount=type=cache,id=npm-scheduler,target=/root/.npm npm ci
 
 # Copy Prisma schema and generate client
 COPY services/scheduler-service/prisma ./prisma

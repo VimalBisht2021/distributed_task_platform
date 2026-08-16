@@ -13,13 +13,17 @@ COPY apps/dashboard/package*.json ./apps/dashboard/
 
 WORKDIR /app/apps/dashboard
 COPY --from=builder_pkg . /workflow-orchestration-engine/packages/builder
-RUN npm ci
+RUN --mount=type=cache,id=npm-dtp-dashboard,target=/root/.npm npm ci
 # Replace symlink with real directory to prevent Turbopack external root errors
 RUN rm -rf node_modules/@local/builder && cp -r /workflow-orchestration-engine/packages/builder node_modules/@local/builder
 
 
+# Copy only the directories the dashboard actually imports
 WORKDIR /app
-COPY . .
+COPY package.json ./
+COPY shared ./shared
+COPY runtime ./runtime
+COPY apps/dashboard ./apps/dashboard
 
 # Arguments for the build
 ARG NEXT_PUBLIC_API_URL
@@ -29,7 +33,7 @@ ENV NEXT_PUBLIC_LAB_SERVICE_URL=$NEXT_PUBLIC_LAB_SERVICE_URL
 
 # Note: Using npx next build explicitly for the dashboard workspace
 RUN ln -s /app/apps/dashboard/node_modules /app/node_modules
-RUN cd apps/dashboard && npx next build
+RUN --mount=type=cache,id=nextjs-dtp-dashboard,target=/app/apps/dashboard/.next/cache cd apps/dashboard && npx next build
 
 # Production image, copy all the files and run next
 FROM base AS runner
