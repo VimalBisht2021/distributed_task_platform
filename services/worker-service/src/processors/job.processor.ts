@@ -115,6 +115,7 @@ async function handleCondition(jobId: string, payload: any) {
     input: payload?.input ?? payload ?? {},
     variables: payload?.variables ?? payload?.input?.variables ?? {},
     upstreamOutputs: payload?.upstreamOutputs ?? payload?.input?.upstreamOutputs ?? {},
+    previousOutput: payload?.previousOutput ?? payload?.input?.previousOutput ?? {},
     // Flatten upstream outputs so expressions like `statusCode > 200` work
     ...(payload?.upstreamOutputs ?? {}),
     ...(payload?.input?.upstreamOutputs ?? {}),
@@ -203,6 +204,7 @@ async function handleScript(jobId: string, payload: any) {
     input: payload?.input ?? payload ?? {},
     variables: payload?.variables ?? payload?.input?.variables ?? {},
     upstreamOutputs: payload?.upstreamOutputs ?? payload?.input?.upstreamOutputs ?? {},
+    previousOutput: payload?.previousOutput ?? payload?.input?.previousOutput ?? {},
   };
 
   await progressService.updateProgress(jobId, 50);
@@ -239,19 +241,14 @@ async function handleScript(jobId: string, payload: any) {
     await jail.set('input', new ivm.ExternalCopy(sandbox.input).copyInto());
     await jail.set('variables', new ivm.ExternalCopy(sandbox.variables).copyInto());
     await jail.set('upstreamOutputs', new ivm.ExternalCopy(sandbox.upstreamOutputs).copyInto());
+    await jail.set('previousOutput', new ivm.ExternalCopy(sandbox.previousOutput).copyInto());
 
     // Execute the script safely
     const script = await isolate.compileScript(wrappedCode, { filename: 'user-script.js' });
     
     // Run the script and await its Promise result (since it's an async IIFE)
-    const rawResult = await script.run(ivmContext, { timeout: 5000, promise: true });
-    
-    // Safely copy result back to Node environment (primitive or cloned object)
-    if (typeof rawResult === 'object' && rawResult !== null && typeof rawResult.copy === 'function') {
-      result = await rawResult.copy();
-    } else {
-      result = rawResult;
-    }
+    // We use copy: true to ensure any complex objects returned from the sandbox are transferred safely.
+    result = await script.run(ivmContext, { timeout: 5000, promise: true, copy: true });
 
     // Cleanup memory
     script.release();
