@@ -63,15 +63,17 @@ async function handleHTTP(jobId: string, payload: any) {
   if (urlObj.protocol !== 'http:' && urlObj.protocol !== 'https:') {
     throw new Error('SSRF Protection: Only HTTP/HTTPS protocols are allowed');
   }
-  if (['localhost', '127.0.0.1', '::1', '0.0.0.0'].includes(urlObj.hostname)) {
-    throw new Error('SSRF Protection: Localhost is not allowed');
-  }
+  if (process.env.DISABLE_SSRF_PROTECTION !== 'true') {
+    if (['localhost', '127.0.0.1', '::1', '0.0.0.0'].includes(urlObj.hostname)) {
+      throw new Error('SSRF Protection: Localhost is not allowed');
+    }
 
-  const { address } = await lookup(urlObj.hostname);
-  if (address === '127.0.0.1' || address === '::1' || address === '0.0.0.0' ||
-      address.startsWith('10.') || address.startsWith('192.168.') || address.startsWith('169.254.') ||
-      /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(address)) {
-    throw new Error('SSRF Protection: Private/local IPs are not allowed');
+    const { address } = await lookup(urlObj.hostname);
+    if (address === '127.0.0.1' || address === '::1' || address === '0.0.0.0' ||
+        address.startsWith('10.') || address.startsWith('192.168.') || address.startsWith('169.254.') ||
+        /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(address)) {
+      throw new Error('SSRF Protection: Private/local IPs are not allowed');
+    }
   }
 
   await progressService.updateProgress(jobId, 20);
