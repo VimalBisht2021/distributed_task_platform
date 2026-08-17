@@ -123,7 +123,7 @@ export const HTTPPlugin: PluginManifest = {
 
 ## Benchmarks
 
-The runtime was built for high throughput and low overhead.
+The runtime was built for high throughput and low overhead. Note: these are synthetic memory-only benchmarks; real throughput depends on database constraints and latency.
 
 ```mermaid
 xychart-beta
@@ -156,6 +156,10 @@ distributed-task-platform/
 ```
 
 ---
+
+## Security
+
+The integration between the Orchestration Engine and this Execution Platform currently uses a **single shared API key** architecture. This limits granular, per-identity access control.
 
 ## Roadmap
 
