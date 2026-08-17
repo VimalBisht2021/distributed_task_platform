@@ -63,7 +63,8 @@ async function handleHTTP(jobId: string, payload: any) {
   if (urlObj.protocol !== 'http:' && urlObj.protocol !== 'https:') {
     throw new Error('SSRF Protection: Only HTTP/HTTPS protocols are allowed');
   }
-  if (process.env.DISABLE_SSRF_PROTECTION !== 'true') {
+  const allowedHosts = process.env.SSRF_ALLOWED_HOSTS ? process.env.SSRF_ALLOWED_HOSTS.split(',') : [];
+  if (!allowedHosts.includes(urlObj.hostname)) {
     if (['localhost', '127.0.0.1', '::1', '0.0.0.0'].includes(urlObj.hostname)) {
       throw new Error('SSRF Protection: Localhost is not allowed');
     }
