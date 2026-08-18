@@ -19,6 +19,6 @@
     "vitest": "^4.1.10"
   },
   "dependencies": {
-    "isolated-vm": "^5.0.4"
+    "isolated-vm": "^7.0.1"
   }
 }
