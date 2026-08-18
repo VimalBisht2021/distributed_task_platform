@@ -1,178 +1,89 @@
-# Distributed Task Platform
+# Distributed Task Platform (DTP)
 
 ![Hero Banner](https://via.placeholder.com/1200x300?text=Distributed+Task+Platform)
 
-A fault-tolerant, horizontally scalable distributed task orchestration platform with real-time observability and a visual workflow builder. Built to demonstrate production-grade distributed systems engineering.
+The **Distributed Task Platform (DTP)** serves as the **Execution/Data Plane** for distributed workflows. It treats every incoming request as an opaque `Job` containing a `type` and a `payload`. DTP does not understand DAGs or orchestration; its sole responsibility is reliable execution, priority queueing, optimistic concurrency control, and recovering from worker crashes.
 
 ---
 
-## The Problem
-
-Modern applications require executing complex, long-running workflows across disparate systems (AI inference, data pipelines, email blasts). Standard task queues (like Celery or BullMQ) lack workflow orchestration (DAGs, branching, conditional logic). Enterprise orchestration engines (like Airflow or Temporal) are often too heavy or abstract away the underlying execution.
-
-**Distributed Task Platform** bridges this gap: It provides an intuitive **Visual Builder** to design declarative workflows and a **Robust Runtime Engine** that guarantees reliable, parallel execution with zero data loss, optimistic concurrency control, and deterministic replayability.
-
----
-
-## Architecture
+## Architecture at a Glance
 
 ```mermaid
 flowchart TD
-    Client[Dashboard UI] -->|WorkflowDefinition JSON| Compiler[Compilation Service]
-    Compiler -->|Semantic Validation & Hash| Planner[Execution Planner]
-    Planner -->|ExecutionPlan| Dispatcher[Dispatcher / Scheduler]
+    WOE[Workflow Orchestration Engine] -->|CreateJobDto| API[DTP API / Dispatcher]
+    API -->|Queue| Redis[(Redis Priority Queue)]
     
-    Dispatcher -->|Lease Tasks| Worker1[Worker Node 1]
-    Dispatcher -->|Lease Tasks| Worker2[Worker Node 2]
+    Redis -->|Lease Job| Worker1[Worker Node 1]
+    Redis -->|Lease Job| Worker2[Worker Node 2]
     
-    Worker1 & Worker2 -->|Plugin Execution| Journal[Execution Journal]
-    Journal -->|Append-only Events| DB[(PostgreSQL)]
+    Worker1 & Worker2 -->|Append-only Results| DB[(PostgreSQL)]
+    Worker1 & Worker2 -.->|Job Completed Webhook| WOE
     
-    SchedulerService[Scheduler Service] -->|Heartbeats & Dead Worker Detection| Redis[(Redis)]
-    SchedulerService -->|Recovery| Journal
+    Scheduler[Scheduler Service] -->|Heartbeat Timeout| Redis
+    Scheduler -->|Re-queue Stranded Jobs| API
 ```
 
----
-
-## Features
-
-- **Visual Workflow Builder**: Declarative drag-and-drop editor for designing workflows without writing code.
-- **Dynamic Plugin Architecture**: Add new task types (HTTP, Script, AI, Email) dynamically via a backend registry.
-- **Parallel Execution & Joins**: True concurrent branch execution with deterministic synchronization.
-- **Event Sourcing & Replay**: All state transitions are recorded as immutable events, allowing exact state reconstruction and time-travel debugging.
-- **Optimistic Concurrency Control (OCC)**: Safe distributed state updates without database locking contention.
-- **Dead Worker Recovery**: Leader-elected scheduler detects crashed workers via Redis heartbeats and gracefully re-queues orphaned tasks.
-- **Execution Viewer**: Real-time Gantt charts, metrics, and timeline tracing.
+DTP provides **at-least-once execution with idempotent consumers (effectively-once)** semantics. Note that side-effects (like external HTTP calls) inside worker handlers may be repeated on retry at the effect boundary.
 
 ---
 
-## Quick Demo
+## Quick Start & Setup
 
-*(Placeholder for Quick Demo GIF)*
-![Quick Demo GIF](https://via.placeholder.com/800x450?text=Demo+GIF)
-
----
-
-## Quick Start
-
-You can run the entire platform locally in under 5 minutes.
-
-### 1. Clone the repository
-
-```bash
-git clone https://github.com/your-username/distributed-task-platform.git
-cd distributed-task-platform
-```
-
-### 2. Configure Environment
-
+### 1. Configure Environment
 ```bash
 cp .env.example .env
 ```
+Ensure you update any default credentials (like the seed admin in `seed-admin.ts`) before using in an exposed environment. The connection to the orchestrator uses a **single shared API key** architecture (per-identity keys are a future goal).
 
-### 3. Start the Platform
-
+### 2. Start the Platform
 ```bash
 docker compose up -d
 ```
+Boots the API, Scheduler, Worker pool, Postgres, Redis, Prometheus, Grafana, and the Dashboard UI.
 
-This single command boots the API, Scheduler, Worker pool, Postgres, Redis, Prometheus, Grafana, and the Dashboard UI.
-
-### 4. Open the Dashboard
-
-Navigate to [http://localhost:3001](http://localhost:3001) in your browser.
-
-- Import one of the sample workflows from the `/demo` folder.
-- Click **Run** and watch the execution live in the Execution Viewer!
-
----
-
-## Execution Flow
-
-When a workflow is submitted:
-1. **Compilation**: The builder sends a declarative `WorkflowDefinition`. The compiler verifies reachability, detects cycles, and generates a semantic hash.
-2. **Planning**: The planner transforms the definition into an `ExecutionPlan` containing task dependency graphs.
-3. **Scheduling**: The dispatcher identifies ready tasks and leases them to available worker nodes.
-4. **Execution**: Workers execute the task via the Plugin System and append `TASK_COMPLETED` events to the Event Journal.
-5. **State Advance**: The journal triggers the planner to unlock downstream tasks (e.g., resolving Join nodes or Conditional branches).
+### 3. Core Job API Routes
+The internal DTP REST API mounts at `/jobs`.
+- `POST /jobs` - Enqueue a new job.
+- `GET /jobs/:jobId` - Check status.
+- `GET /jobs/by-idempotency-key/:key` - Fetch by idempotency key.
+- `POST /jobs/:jobId/cancel` - Halt execution if pending/running.
+- `POST /jobs/:jobId/retry` - Force a retry (increments `retryCount`).
 
 ---
 
-## Plugin Architecture
+## Worker Handlers & Plugins
+Workers execute untrusted payloads using registered handlers.
+- **`core/script`**: Executes arbitrary JS. Secured via `isolated-vm`. Strict memory bounds. Fails closed if the native module is unavailable.
+- **`core/http`**: Standard HTTP outbound requests. Implements basic SSRF protection.
+- **`core/email`**: Sends emails using an Ethereal test transporter (stubbed, not production SMTP).
+- **`core/ai`**: **Stubbed AI implementation** returning `[STUB] Mocked AI completion`.
+- **Default fallback**: Unrecognized handlers will run a mock delay and return a generic success response.
 
-The system is highly extensible. Adding a new task type requires zero frontend changes.
+---
 
-```typescript
-export const HTTPPlugin: PluginManifest = {
-    id: 'core/http',
-    name: 'HTTP Request',
-    version: '1.0.0',
-    schema: {
-        url: { type: 'string', required: true },
-        method: { type: 'select', options: ['GET', 'POST'] }
-    },
-    execute: async (context, config) => {
-        const response = await fetch(config.url, { method: config.method });
-        return response.json();
-    }
-};
+## 🧪 Lab Service
+
+The **Lab Service** (`services/lab-service`) is included to exercise the real DTP platform through controlled distributed systems scenarios.
+
+### Using the Lab
+Start the lab environment:
+```bash
+docker compose -f docker-compose.lab.yml up -d
 ```
-*When registered, the Visual Builder dynamically renders the configuration panel and the Runtime routes execution to this handler.*
+Interact via the HTTP API: `POST /runs`
+Accepts `{"scenario": "<name>"}` where `<name>` is exactly one of:
+
+1. **`priority`**: Tests priority queueing (Low vs High) and verifies High priority jobs leapfrog the queue.
+2. **`recovery`**: Kills a worker container mid-execution. Validates that the Scheduler Service detects the missed heartbeats and correctly requeues stranded jobs.
+3. **`failover`**: Kills the leader scheduler. Validates distributed Redis locking and fast leader failover.
+4. **`benchmark`**: A high-throughput stress test using the real platform components (Lab Service throughput metrics, not synthetic in-memory runtime benchmarks).
 
 ---
 
-## Benchmarks
-
-The runtime was built for high throughput and low overhead. Note: these are synthetic memory-only benchmarks; real throughput depends on database constraints and latency.
-
-```mermaid
-xychart-beta
-    title "Compilation Time vs Node Count (ms)"
-    x-axis [10, 100, 500, 1000]
-    y-axis "Time (ms)" 0 --> 15
-    bar [1.2, 3.5, 7.8, 13.5]
-```
-
-```mermaid
-xychart-beta
-    title "Serialization Overhead (ms)"
-    x-axis [10, 100, 500, 1000]
-    y-axis "Time (ms)" 0 --> 50
-    bar [2.1, 8.4, 25.1, 42.7]
-```
-
----
-
-## Project Structure
-
-```
-distributed-task-platform/
-├── apps/dashboard/          # Next.js 16 Visual Builder & Execution Viewer
-├── demo/                    # Pre-built workflow JSONs for quick evaluation
-├── docs/                    # Deep-dive architecture and subsystem documentation
-├── runtime/                 # Core execution engine, compiler, and planner
-├── services/                # Microservices (API, Worker, Scheduler)
-└── docker-compose.yml       # Production-ready local infrastructure
-```
-
----
-
-## Security
-
-The integration between the Orchestration Engine and this Execution Platform currently uses a **single shared API key** architecture. This limits granular, per-identity access control.
-
-## Roadmap
-
-- **v1.0 (Current)**: Core execution engine, Visual Builder, Event Sourcing, Replay, CI/CD.
-- **v1.1**: Kubernetes Helm Charts, Workflow Migration Engine.
-- **v2.0**: Multi-tenancy, RBAC, API Rate Limiting, Plugin Marketplace.
-
----
+## Observability & Security
+- **Security Limitation**: Current WOE ↔ DTP API uses a single shared `x-api-key`.
+- **Tracing**: W3C distributed tracing spans across services are currently aspirational.
+- **Metrics**: Synthetic in-memory runtime metrics exist in legacy text documentation, but true throughput is tested via the Lab Service.
 
 ## Contributing
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for local development setup, testing guidelines, and PR processes.
-
-## License
-
-MIT License. See [LICENSE](LICENSE) for details.
+See `CONTRIBUTING.md` for local development setup, testing guidelines, and PR processes. License: MIT.
