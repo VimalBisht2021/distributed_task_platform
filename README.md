@@ -35,11 +35,23 @@ cp .env.example .env
 ```
 Ensure you update any default credentials (like the seed admin in `seed-admin.ts`) before using in an exposed environment. The connection to the orchestrator uses a **single shared API key** architecture (per-identity keys are a future goal).
 
-### 2. Start the Platform
+### 2. Run Full Stack via Docker Compose (Recommended)
+
+To boot the entire execution platform (API, scheduler, workers, database, cache, dashboard, and observability stack) in one command:
+
 ```bash
 docker compose up -d
 ```
-Boots the API, Scheduler, Worker pool, Postgres, Redis, Prometheus, Grafana, and the Dashboard UI.
+
+**Port Mapping:**
+- **DTP Dashboard**: `http://localhost:4002`
+- **DTP API**: `http://localhost:4001`
+- **Postgres**: `5434`
+- **Redis**: `6380`
+- **Grafana**: `http://localhost:3005`
+- **Prometheus**: `http://localhost:9091`
+
+*(Note: For evaluating fault tolerance scenarios, use the `docker-compose.lab.yml` stack instead, as described in the Lab Service section).*
 
 ### 3. Core Job API Routes
 The internal DTP REST API mounts at `/jobs`.
