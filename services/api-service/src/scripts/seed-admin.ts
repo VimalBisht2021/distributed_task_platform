@@ -4,8 +4,9 @@ import bcrypt from "bcrypt";
 const prisma = new PrismaClient();
 
 async function main() {
-  const email = "admin@system.local";
-  const password = "password123";
+  // WARNING: CHANGE THESE CREDENTIALS BEFORE ANY NON-LOCAL USE
+  const email = process.env.ADMIN_EMAIL || "admin@system.local";
+  const password = process.env.ADMIN_PASSWORD || "password123";
   
   const existingUser = await prisma.user.findUnique({ where: { email } });
   
@@ -42,3 +43,5 @@ main()
   .finally(async () => {
     await prisma.$disconnect();
   });
+
+
