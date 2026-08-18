@@ -7,7 +7,7 @@ let ivm: any;
 try {
     ivm = require('isolated-vm');
 } catch (e) {
-    console.warn('isolated-vm not installed or failed to compile. Using mock execution environment.');
+    console.error('isolated-vm not installed or failed to compile. Script execution is unavailable.');
 }
 
 export class LocalIsolateEnvironment implements ExecutionEnvironment {
@@ -25,12 +25,7 @@ export class LocalIsolateEnvironment implements ExecutionEnvironment {
         }
 
         if (!ivm) {
-            // Mock execution if isolated-vm is unavailable
-            return {
-                status: 'COMPLETED',
-                output: 'Mock execution successful',
-                metrics: { durationMs: 0 }
-            };
+            throw new ExecutionError('Script execution unavailable: isolated-vm failed to initialize');
         }
 
         const start = Date.now();
