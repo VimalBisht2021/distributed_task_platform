@@ -14,7 +14,7 @@
   "devDependencies": {
     "@types/uuid": "^10.0.0",
     "concurrently": "^9.2.4",
-    "fast-check": "^4.9.0",
+    "fast-check": "^4.10.1",
     "uuid": "^14.0.1",
     "vitest": "^4.1.10"
   },
