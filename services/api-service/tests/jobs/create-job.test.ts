@@ -1,3 +1,4 @@
+import "dotenv/config";
 import { describe, it, expect, afterEach, beforeAll, afterAll } from "vitest";
 import request from "supertest";
 import jwt from "jsonwebtoken";

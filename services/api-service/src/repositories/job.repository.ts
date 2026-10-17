@@ -59,6 +59,22 @@ export class JobRepository {
     });
   }
 
+  async rollbackStatusIfQueued(jobId: string, fromStatus: JobStatus = "QUEUED", toStatus: JobStatus = "PENDING") {
+    return prisma.job.updateMany({
+      where: {
+        id: jobId,
+        status: fromStatus,
+        workerId: null,
+      },
+      data: {
+        status: toStatus,
+        version: {
+          increment: 1,
+        },
+      },
+    });
+  }
+
   async retryJob(jobId: string) {
     return prisma.job.update({
       where: {

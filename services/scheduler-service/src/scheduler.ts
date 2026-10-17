@@ -54,6 +54,8 @@ async function runScheduler() {
 
       await pendingReconcilerService.processPendingJobs();
 
+      await pendingReconcilerService.processStaleQueuedJobs();
+
       await recoveryService.recoverProcessingQueue();
     } catch (error) {
       console.error(error);

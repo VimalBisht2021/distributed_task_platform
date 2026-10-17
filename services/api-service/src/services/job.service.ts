@@ -73,14 +73,18 @@ export class JobService {
         error
       );
 
-      await this.jobRepository.updateStatus(
+      // Safe conditional rollback: only revert to PENDING if job has not already been claimed by a worker
+      const rollback = await this.jobRepository.rollbackStatusIfQueued(
         job.id,
+        "QUEUED",
         "PENDING"
       );
 
+      const latestJob = await this.jobRepository.findById(job.id);
+
       return {
         jobId: job.id,
-        status: "PENDING",
+        status: latestJob?.status || (rollback.count > 0 ? "PENDING" : "QUEUED"),
         priority: job.priority,
       };
     }
