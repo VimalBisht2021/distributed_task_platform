@@ -8,9 +8,10 @@ export class ResultRepository {
     resultType: string,
     resultUrl: string,
     size?: number,
-    payload?: any
+    payload?: any,
+    client: any = prisma
   ) {
-    return prisma.result.create({
+    return client.result.create({
       data: {
         jobId,
         resultType,

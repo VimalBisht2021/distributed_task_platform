@@ -8,14 +8,16 @@ export class ResultService {
     resultType: string,
     resultUrl: string,
     size?: number,
-    payload?: any
+    payload?: any,
+    client?: any
   ) {
     return this.repository.create(
       jobId,
       resultType,
       resultUrl,
       size,
-      payload
+      payload,
+      client
     );
   }
 }

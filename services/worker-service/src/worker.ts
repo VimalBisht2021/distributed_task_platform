@@ -97,29 +97,38 @@ export async function processOneJob(workerId: string) {
     // The processor will be mocked in tests
     const result = await processJob(jobId, job.jobType, job.payload);
 
-    await resultService.createResult(
-      jobId,
-      result.resultType,
-      `/results/${jobId}.json`,
-      JSON.stringify(result).length,
-      result.payload
-    );
-
-    const compResult = await prisma.job.updateMany({
-      where: { id: jobId, version: currentVersion, workerId: workerId },
-      data: {
-        status: "COMPLETED",
-        completedAt: new Date(),
-        failureReason: null,
-        progress: 100,
-        workerId: null,
-        version: {
-          increment: 1,
+    const completionTx = await prisma.$transaction(async (tx) => {
+      const compResult = await tx.job.updateMany({
+        where: { id: jobId, version: currentVersion, workerId: workerId, status: "RUNNING" },
+        data: {
+          status: "COMPLETED",
+          completedAt: new Date(),
+          failureReason: null,
+          progress: 100,
+          workerId: null,
+          version: {
+            increment: 1,
+          },
         },
-      },
+      });
+
+      if (compResult.count === 0) {
+        return null;
+      }
+
+      await resultService.createResult(
+        jobId,
+        result.resultType,
+        `/results/${jobId}.json`,
+        JSON.stringify(result).length,
+        result.payload,
+        tx
+      );
+
+      return compResult;
     });
 
-    if (compResult.count === 0) {
+    if (!completionTx) {
       console.log(
         `[${workerId}] Zombie worker detected on COMPLETE for ${jobId}`,
       );
