@@ -27,6 +27,7 @@ describe("Worker Graceful Shutdown Integration", () => {
       data: {
         jobType: "video-encode",
         payload: { file: "test.mp4" },
+        status: "QUEUED",
         user: {
           connectOrCreate: {
             where: { email: "test@example.com" },

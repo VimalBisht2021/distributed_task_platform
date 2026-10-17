@@ -1,7 +1,13 @@
 import { ProgressService } from "../services/progress.service";
 import { EventService } from "../services/event.service";
 import * as dns from "dns";
-import ivm from "isolated-vm";
+let ivm: any = null;
+try {
+  const importedIvm = require("isolated-vm");
+  ivm = importedIvm?.default ?? importedIvm;
+} catch {
+  ivm = null;
+}
 import { Parser } from "expr-eval";
 import { promisify } from "util";
 import * as nodemailer from "nodemailer";
