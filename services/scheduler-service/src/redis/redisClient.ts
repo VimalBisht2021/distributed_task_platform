@@ -1,3 +1,4 @@
+import "dotenv/config";
 import Redis from "ioredis";
 
 // General-purpose connection for SET, GET, SADD, etc.
