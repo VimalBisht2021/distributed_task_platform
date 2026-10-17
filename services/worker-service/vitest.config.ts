@@ -6,10 +6,6 @@ export default defineConfig({
     // and PostgreSQL tables. Running them in parallel causes race conditions 
     // (e.g. one test calling deleteMany() while another test is querying).
     fileParallelism: false,
-    poolOptions: {
-      threads: {
-        singleThread: true,
-      },
-    },
+    pool: 'forks',
   },
 });

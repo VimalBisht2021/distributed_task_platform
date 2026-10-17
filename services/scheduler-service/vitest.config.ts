@@ -5,10 +5,6 @@ export default defineConfig({
     // Disable parallelism because integration tests share the same Redis keys 
     // and PostgreSQL tables.
     fileParallelism: false,
-    poolOptions: {
-      threads: {
-        singleThread: true,
-      },
-    },
+    pool: 'forks',
   },
 });

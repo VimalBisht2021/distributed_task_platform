@@ -2,6 +2,7 @@ import "dotenv/config";
 import { PrismaClient } from "@prisma/client";
 
 import { RetryService } from "./services/retry.service";
+import { PendingReconcilerService } from "./services/pending-reconciler.service";
 import { monitorWorkers } from "./worker-monitor";
 import { LeaderService, SCHEDULER_ID } from "./leader-election/leader.service";
 import { startMetricsServer } from "./metrics/server";
@@ -10,6 +11,7 @@ import { redisClient, redisBlockingClient } from "./redis/redisClient";
 import { REDIS_KEYS } from "./redis/keys";
 
 const retryService = new RetryService();
+const pendingReconcilerService = new PendingReconcilerService();
 const leaderService = new LeaderService();
 
 const POLL_INTERVAL = 5000;
@@ -47,6 +49,8 @@ async function runScheduler() {
       await monitorWorkers();
       
       await retryService.processRetries();
+
+      await pendingReconcilerService.processPendingJobs();
     } catch (error) {
       console.error(error);
     }

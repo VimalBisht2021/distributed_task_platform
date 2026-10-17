@@ -50,16 +50,16 @@ export class JobService {
     );
 
     try {
+      await this.jobRepository.updateStatus(
+        job.id,
+        "QUEUED"
+      );
+
       await enqueueJob(job.id, dto.priority || "MEDIUM");
 
       await this.eventService.createEvent(
         job.id,
         "JOB_QUEUED"
-      );
-
-      await this.jobRepository.updateStatus(
-        job.id,
-        "QUEUED"
       );
 
       return {
@@ -68,6 +68,11 @@ export class JobService {
         priority: job.priority,
       };
     } catch (error) {
+      console.error(
+        `Failed to enqueue job ${job.id} to Redis (leaving in PENDING for reconciler):`,
+        error
+      );
+
       await this.jobRepository.updateStatus(
         job.id,
         "PENDING"
