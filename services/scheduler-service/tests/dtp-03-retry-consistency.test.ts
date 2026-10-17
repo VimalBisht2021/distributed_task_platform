@@ -71,7 +71,7 @@ describe("DTP-03: Retry and Recovery Consistency", () => {
     const enqueueSpy = vi.spyOn((retryService as any).queueService, "enqueue")
       .mockRejectedValueOnce(new Error("Redis connection dropped"));
 
-    await expect(retryService.processRetries()).rejects.toThrow("Redis connection dropped");
+    await retryService.processRetries();
 
     // The job MUST NOT remain stuck in QUEUED without a queue entry!
     const job = await prisma.job.findUnique({ where: { id: testJobId } });
@@ -79,5 +79,102 @@ describe("DTP-03: Retry and Recovery Consistency", () => {
     expect(job?.nextRetryAt).toBeDefined();
 
     enqueueSpy.mockRestore();
+  });
+
+  it("should recover and schedule RETRYING jobs even if nextRetryAt is null", async () => {
+    // Create a job in RETRYING state where nextRetryAt is null (e.g. from crash or partial update)
+    const nullRetryJob = await prisma.job.create({
+      data: {
+        userId: "test-user-1",
+        jobType: "TEXT_PROCESSING",
+        payload: { text: "null nextRetryAt job" },
+        status: "RETRYING",
+        nextRetryAt: null,
+        retryCount: 1,
+        version: 1,
+      },
+    });
+
+    const requeuedCount = await retryService.processRetries();
+    // Must process both the beforeEach job and the null-nextRetryAt job
+    expect(requeuedCount).toBe(2);
+
+    const updated = await prisma.job.findUnique({ where: { id: nullRetryJob.id } });
+    expect(updated?.status).toBe("QUEUED");
+    expect(updated?.version).toBe(2);
+
+    const queueEntries = await redisClient.lrange(REDIS_KEYS.QUEUE_MEDIUM, 0, -1);
+    expect(queueEntries).toContain(nullRetryJob.id);
+  });
+
+  it("should NOT abort batch retry processing when one job fails Redis enqueue", async () => {
+    // Create a second retrying job
+    const secondJob = await prisma.job.create({
+      data: {
+        userId: "test-user-1",
+        jobType: "TEXT_PROCESSING",
+        payload: { text: "second retrying job" },
+        status: "RETRYING",
+        nextRetryAt: new Date(Date.now() - 5000),
+        retryCount: 1,
+        version: 1,
+      },
+    });
+
+    // Mock enqueue to fail ONLY for the first job, but succeed for the second
+    const enqueueSpy = vi.spyOn((retryService as any).queueService, "enqueue")
+      .mockImplementation(async (id: string) => {
+        if (id === testJobId) {
+          throw new Error("Simulated transient Redis failure on first job");
+        }
+        await redisClient.lpush(REDIS_KEYS.QUEUE_MEDIUM, id);
+      });
+
+    // Running processRetries should NOT throw; it should roll back job 1 and successfully process job 2
+    const count = await retryService.processRetries();
+    expect(count).toBe(1);
+
+    // Job 1 should be rolled back to RETRYING
+    const job1 = await prisma.job.findUnique({ where: { id: testJobId } });
+    expect(job1?.status).toBe("RETRYING");
+
+    // Job 2 should be successfully QUEUED
+    const job2 = await prisma.job.findUnique({ where: { id: secondJob.id } });
+    expect(job2?.status).toBe("QUEUED");
+
+    enqueueSpy.mockRestore();
+  });
+
+  it("should protect worker RUNNING state if a worker claimed the job before rollback", async () => {
+    // Arrange: job is claimed to QUEUED by retry service
+    // If enqueue threw an error, but in fact a worker somehow already claimed it to RUNNING:
+    const runningJob = await prisma.job.create({
+      data: {
+        userId: "test-user-1",
+        jobType: "TEXT_PROCESSING",
+        payload: { text: "worker running" },
+        status: "RUNNING",
+        workerId: "fast-worker-1",
+        version: 2,
+      },
+    });
+
+    // Attempting a conditional rollback targeting QUEUED must affect 0 rows
+    const rollback = await prisma.job.updateMany({
+      where: {
+        id: runningJob.id,
+        status: "QUEUED",
+        workerId: null,
+      },
+      data: {
+        status: "RETRYING",
+        version: { increment: 1 },
+      },
+    });
+    expect(rollback.count).toBe(0);
+
+    const checkJob = await prisma.job.findUnique({ where: { id: runningJob.id } });
+    expect(checkJob?.status).toBe("RUNNING");
+    expect(checkJob?.workerId).toBe("fast-worker-1");
   });
 });

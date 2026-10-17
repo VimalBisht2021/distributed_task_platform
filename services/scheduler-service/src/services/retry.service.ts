@@ -8,7 +8,7 @@ export class RetryService {
   private queueService = new QueueService();
   private eventService = new EventService();
 
-  async processRetries() {
+  async processRetries(): Promise<number> {
     const jobs = await this.getRetryingJobs();
 
     let requeuedCount = 0;
@@ -34,7 +34,7 @@ export class RetryService {
         continue;
       }
 
-      // 2. Enqueue to Redis; if it fails, rollback status to RETRYING
+      // 2. Enqueue to Redis; if it fails, rollback status to RETRYING with version check
       try {
         await this.queueService.enqueue(job.id, job.priority || "MEDIUM");
       } catch (error) {
@@ -43,6 +43,8 @@ export class RetryService {
           where: {
             id: job.id,
             status: "QUEUED",
+            workerId: null,
+            version: job.version + 1,
           },
           data: {
             status: "RETRYING",
@@ -50,15 +52,21 @@ export class RetryService {
             version: { increment: 1 },
           },
         });
-        throw error;
+        // Continue to next job in batch rather than aborting entire scheduler sweep
+        continue;
       }
 
       // 3. Emit requeue event
-      await this.eventService.createEvent(
-        job.id,
-        "JOB_REQUEUED",
-        { retryCount: job.retryCount },
-      );
+      try {
+        await this.eventService.createEvent(
+          job.id,
+          "JOB_REQUEUED",
+          { retryCount: job.retryCount },
+        );
+      } catch (eventErr) {
+        console.error(`Failed to record JOB_REQUEUED event for ${job.id}:`, eventErr);
+      }
+
       console.log(`Requeued ${job.id} (retry ${job.retryCount})`);
       requeuedCount++;
     }
@@ -69,9 +77,16 @@ export class RetryService {
     return prisma.job.findMany({
       where: {
         status: "RETRYING",
-        nextRetryAt: {
-          lte: new Date(),
-        },
+        OR: [
+          {
+            nextRetryAt: {
+              lte: new Date(),
+            },
+          },
+          {
+            nextRetryAt: null,
+          },
+        ],
       },
       orderBy: {
         updatedAt: "asc",
