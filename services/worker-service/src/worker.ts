@@ -18,7 +18,7 @@ import {
 } from "./metrics/metrics";
 import { startMetricsServer, stopMetricsServer } from "./metrics/server";
 
-const prisma = new PrismaClient();
+export const prisma = new PrismaClient();
 
 const eventService = new EventService();
 const resultService = new ResultService();
@@ -48,6 +48,13 @@ export async function processOneJob(workerId: string) {
     return false;
   }
 
+  if (job.status !== "QUEUED") {
+    console.log(
+      `[${workerId}] Skipping job ${jobId}: status is ${job.status}, expected QUEUED`
+    );
+    return false;
+  }
+
   const queueWaitSeconds = (Date.now() - job.createdAt.getTime()) / 1000;
 
   console.log(`[${workerId}] ${new Date().toISOString()} Processing ${jobId}`);
@@ -57,7 +64,11 @@ export async function processOneJob(workerId: string) {
 
   try {
     const updateResult = await prisma.job.updateMany({
-      where: { id: jobId, version: currentVersion },
+      where: {
+        id: jobId,
+        version: currentVersion,
+        status: "QUEUED",
+      },
       data: {
         status: "RUNNING",
         workerId: workerId,
@@ -69,7 +80,9 @@ export async function processOneJob(workerId: string) {
     });
 
     if (updateResult.count === 0) {
-      console.log(`[${workerId}] Zombie worker detected on START for ${jobId}`);
+      console.log(
+        `[${workerId}] Cannot claim job ${jobId}: not in QUEUED state or version mismatch`
+      );
       return false;
     }
 
