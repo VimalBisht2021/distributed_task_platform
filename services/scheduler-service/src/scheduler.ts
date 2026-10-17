@@ -3,6 +3,7 @@ import { PrismaClient } from "@prisma/client";
 
 import { RetryService } from "./services/retry.service";
 import { PendingReconcilerService } from "./services/pending-reconciler.service";
+import { RecoveryService } from "./services/recovery.service";
 import { monitorWorkers } from "./worker-monitor";
 import { LeaderService, SCHEDULER_ID } from "./leader-election/leader.service";
 import { startMetricsServer } from "./metrics/server";
@@ -12,6 +13,7 @@ import { REDIS_KEYS } from "./redis/keys";
 
 const retryService = new RetryService();
 const pendingReconcilerService = new PendingReconcilerService();
+const recoveryService = new RecoveryService();
 const leaderService = new LeaderService();
 
 const POLL_INTERVAL = 5000;
@@ -51,6 +53,8 @@ async function runScheduler() {
       await retryService.processRetries();
 
       await pendingReconcilerService.processPendingJobs();
+
+      await recoveryService.recoverProcessingQueue();
     } catch (error) {
       console.error(error);
     }
