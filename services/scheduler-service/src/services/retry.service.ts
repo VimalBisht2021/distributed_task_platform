@@ -39,19 +39,26 @@ export class RetryService {
         await this.queueService.enqueue(job.id, job.priority || "MEDIUM");
       } catch (error) {
         console.error(`Failed to enqueue retry for job ${job.id}, rolling back:`, error);
-        await prisma.job.updateMany({
-          where: {
-            id: job.id,
-            status: "QUEUED",
-            workerId: null,
-            version: job.version + 1,
-          },
-          data: {
-            status: "RETRYING",
-            nextRetryAt: new Date(Date.now() + 5000),
-            version: { increment: 1 },
-          },
-        });
+        try {
+          await prisma.job.updateMany({
+            where: {
+              id: job.id,
+              status: "QUEUED",
+              workerId: null,
+              version: job.version + 1,
+            },
+            data: {
+              status: "RETRYING",
+              nextRetryAt: new Date(Date.now() + 5000),
+              version: { increment: 1 },
+            },
+          });
+        } catch (rollbackError) {
+          console.error(
+            `Failed to rollback job ${job.id} to RETRYING after enqueue error (will be recovered by stale QUEUED reconciler):`,
+            rollbackError
+          );
+        }
         // Continue to next job in batch rather than aborting entire scheduler sweep
         continue;
       }

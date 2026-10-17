@@ -2,6 +2,7 @@ import "dotenv/config";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { PrismaClient } from "@prisma/client";
 import { RetryService } from "../src/services/retry.service";
+import { PendingReconcilerService } from "../src/services/pending-reconciler.service";
 import { redisClient } from "../src/redis/redisClient";
 import { REDIS_KEYS } from "../src/redis/keys";
 
@@ -145,9 +146,170 @@ describe("DTP-03: Retry and Recovery Consistency", () => {
     enqueueSpy.mockRestore();
   });
 
+  it("should isolate rollback failures so a database error during rollback does not abort the remaining retry batch", async () => {
+    // Create a second retrying job
+    const secondJob = await prisma.job.create({
+      data: {
+        userId: "test-user-1",
+        jobType: "TEXT_PROCESSING",
+        payload: { text: "second retrying job" },
+        status: "RETRYING",
+        nextRetryAt: new Date(Date.now() - 5000),
+        retryCount: 1,
+        version: 1,
+      },
+    });
+
+    // Mock enqueue to fail for Job 1
+    const enqueueSpy = vi.spyOn((retryService as any).queueService, "enqueue")
+      .mockImplementation(async (id: string) => {
+        if (id === testJobId) {
+          throw new Error("Enqueue failure on Job 1");
+        }
+        await redisClient.lpush(REDIS_KEYS.QUEUE_MEDIUM, id);
+      });
+
+    // Mock prisma.job.updateMany to fail specifically when rolling back Job 1
+    const originalUpdateMany = prisma.job.updateMany.bind(prisma.job);
+    const updateManySpy = vi.spyOn(prisma.job, "updateMany")
+      .mockImplementation(async (args: any) => {
+        if (args?.where?.id === testJobId && args?.data?.status === "RETRYING") {
+          throw new Error("Simulated DB connection failure during rollback");
+        }
+        return originalUpdateMany(args);
+      });
+
+    // Running processRetries must NOT throw; Job 2 must still be processed!
+    const count = await retryService.processRetries();
+    expect(count).toBe(1);
+
+    // Job 2 is successfully queued
+    const job2 = await prisma.job.findUnique({ where: { id: secondJob.id } });
+    expect(job2?.status).toBe("QUEUED");
+
+    enqueueSpy.mockRestore();
+    updateManySpy.mockRestore();
+  });
+
+  it("should end-to-end recover a job when scheduler crashes between PostgreSQL QUEUED transition and Redis enqueue", async () => {
+    const reconciler = new PendingReconcilerService(1000);
+
+    // 1. A job starts in RETRYING
+    const job = await prisma.job.create({
+      data: {
+        userId: "test-user-1",
+        jobType: "TEXT_PROCESSING",
+        payload: { text: "crash between pg and redis" },
+        status: "RETRYING",
+        nextRetryAt: new Date(Date.now() - 5000),
+        retryCount: 1,
+        version: 1,
+      },
+    });
+
+    // 2. Simulate scheduler claiming the job to QUEUED, but crashing immediately before queueService.enqueue
+    await prisma.job.update({
+      where: { id: job.id },
+      data: {
+        status: "QUEUED",
+        version: 2,
+        updatedAt: new Date(Date.now() - 5000), // aged beyond stale threshold
+      },
+    });
+
+    // Ensure Redis has NO entry for this job
+    const initialQueue = await redisClient.lrange(REDIS_KEYS.QUEUE_MEDIUM, 0, -1);
+    expect(initialQueue).not.toContain(job.id);
+
+    // 3. Scheduler restarts: stale QUEUED reconciler sweeps
+    const recovered = await reconciler.processStaleQueuedJobs(1000);
+    expect(recovered).toBe(1);
+
+    // 4. Redis now has the job in QUEUE_MEDIUM
+    const queuedItems = await redisClient.lrange(REDIS_KEYS.QUEUE_MEDIUM, 0, -1);
+    expect(queuedItems).toContain(job.id);
+
+    // 5. Worker pops and claims the job using DTP-01 atomic OCC update
+    const freshJob = await prisma.job.findUnique({ where: { id: job.id } });
+    const claim = await prisma.job.updateMany({
+      where: {
+        id: job.id,
+        version: freshJob!.version,
+        status: "QUEUED",
+      },
+      data: {
+        status: "RUNNING",
+        workerId: "test-worker-1",
+        version: { increment: 1 },
+      },
+    });
+    expect(claim.count).toBe(1);
+
+    // 6. Worker completes the job
+    await prisma.job.update({
+      where: { id: job.id },
+      data: { status: "COMPLETED" },
+    });
+
+    const finalJob = await prisma.job.findUnique({ where: { id: job.id } });
+    expect(finalJob?.status).toBe("COMPLETED");
+  });
+
+  it("should prevent duplicate execution when Redis receives duplicate retry entries from network retries", async () => {
+    // Arrange: Job is QUEUED
+    const job = await prisma.job.create({
+      data: {
+        userId: "test-user-1",
+        jobType: "TEXT_PROCESSING",
+        payload: { text: "duplicate retry entry" },
+        status: "QUEUED",
+        priority: "MEDIUM",
+        version: 2,
+      },
+    });
+
+    // Simulate duplicate entries in Redis queue (e.g. from network timeout retry)
+    await redisClient.lpush(REDIS_KEYS.QUEUE_MEDIUM, job.id);
+    await redisClient.lpush(REDIS_KEYS.QUEUE_MEDIUM, job.id);
+
+    // Worker 1 pops entry #1 and executes atomic claim
+    const worker1Claim = await prisma.job.updateMany({
+      where: {
+        id: job.id,
+        version: 2,
+        status: "QUEUED",
+      },
+      data: {
+        status: "RUNNING",
+        workerId: "worker-1",
+        version: { increment: 1 },
+      },
+    });
+    expect(worker1Claim.count).toBe(1);
+
+    // Worker 2 pops entry #2 and attempts atomic claim
+    const worker2Claim = await prisma.job.updateMany({
+      where: {
+        id: job.id,
+        version: 2,
+        status: "QUEUED",
+      },
+      data: {
+        status: "RUNNING",
+        workerId: "worker-2",
+        version: { increment: 1 },
+      },
+    });
+    // Worker 2 MUST be rejected because status is RUNNING and version is now 3
+    expect(worker2Claim.count).toBe(0);
+
+    // Verify exactly ONE worker is recorded
+    const finalJob = await prisma.job.findUnique({ where: { id: job.id } });
+    expect(finalJob?.status).toBe("RUNNING");
+    expect(finalJob?.workerId).toBe("worker-1");
+  });
+
   it("should protect worker RUNNING state if a worker claimed the job before rollback", async () => {
-    // Arrange: job is claimed to QUEUED by retry service
-    // If enqueue threw an error, but in fact a worker somehow already claimed it to RUNNING:
     const runningJob = await prisma.job.create({
       data: {
         userId: "test-user-1",
