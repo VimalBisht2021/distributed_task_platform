@@ -13,8 +13,47 @@ export class RetryService {
 
     let requeuedCount = 0;
     for (const job of jobs) {
-      await this.queueService.enqueue(job.id, job.priority || "MEDIUM");
-      await this.markQueued(job.id);
+      // 1. Atomically claim and transition to QUEUED using OCC
+      const updateResult = await prisma.job.updateMany({
+        where: {
+          id: job.id,
+          status: "RETRYING",
+          version: job.version,
+        },
+        data: {
+          status: "QUEUED",
+          nextRetryAt: null,
+          version: {
+            increment: 1,
+          },
+        },
+      });
+
+      if (updateResult.count === 0) {
+        // Lost race to concurrent sweep or job was cancelled
+        continue;
+      }
+
+      // 2. Enqueue to Redis; if it fails, rollback status to RETRYING
+      try {
+        await this.queueService.enqueue(job.id, job.priority || "MEDIUM");
+      } catch (error) {
+        console.error(`Failed to enqueue retry for job ${job.id}, rolling back:`, error);
+        await prisma.job.updateMany({
+          where: {
+            id: job.id,
+            status: "QUEUED",
+          },
+          data: {
+            status: "RETRYING",
+            nextRetryAt: new Date(Date.now() + 5000),
+            version: { increment: 1 },
+          },
+        });
+        throw error;
+      }
+
+      // 3. Emit requeue event
       await this.eventService.createEvent(
         job.id,
         "JOB_REQUEUED",
@@ -27,29 +66,17 @@ export class RetryService {
   }
 
   async getRetryingJobs() {
-  return prisma.job.findMany({
-    where: {
-      status: "RETRYING",
-      nextRetryAt: {
-        lte: new Date(),
+    return prisma.job.findMany({
+      where: {
+        status: "RETRYING",
+        nextRetryAt: {
+          lte: new Date(),
+        },
       },
-    },
-    orderBy: {
-      updatedAt: "asc",
-    },
-    take: 100,
-  });
-}
-
-    async markQueued(jobId: string){
-        return prisma.job.update({
-            where:{
-                id:jobId,
-            },
-            data:{
-                status: "QUEUED",
-                nextRetryAt: null,
-            },
-        });
-    }
+      orderBy: {
+        updatedAt: "asc",
+      },
+      take: 100,
+    });
+  }
 }
